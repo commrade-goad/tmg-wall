@@ -41,21 +41,26 @@ int main(int argc, char **argv) {
 
     /* -- Work -- */
 
-    const bool dark_mode = true;
-    const bool monochrome = false; /* no second accent, no s, v checkin */
-
     pair_t most_used    = {0};
     pair_t second_used  = {0};
 
     uint16_t *freq = calloc(0x1000000, sizeof(uint16_t));
 
-    static const float max_lightness = 0.83;
-    static const float min_lightness = 0.40;
+    /* == CONFIG == */
+    const bool dark_mode  = true;
+    const bool monochrome = false; /* no second accent, no s, v checkin */
 
+    static const float max_lightness  = 0.83;
+    static const float min_lightness  = 0.40;
     static const float min_saturation = 0.20;
     static const float max_saturation = 0.87;
 
     static const float second_color_hue_diff = 0.083;
+
+    static const float bg_color_value          = 0.13;
+    static const float bg_color_value_alt_diff = 0.10;
+    static const float bg_min_value_diff       = 0.38;
+    /* == CONFIG == */
 
     size_t color_count = 0;
     for (int y = 0; y < height; y++) {
@@ -128,43 +133,56 @@ int main(int argc, char **argv) {
 
     hsv_t first_accent_hsv = rgb_to_hsv(most_used.first);
     hsv_t second_accent_hsv = rgb_to_hsv(second_used.first);
-    hsv_t shared_hsv = first_accent_hsv;
 
     /* Bg Color */
-    if (dark_mode) {
-        shared_hsv.v = 0.15;
-        palette[0] = hsv_to_rgb(shared_hsv);
+    double invert = dark_mode ? 1.0 : -1.0;
+    double offset = dark_mode ? 0.0 : 1.0;
 
-        shared_hsv.v = 0.30;
-        palette[8] = hsv_to_rgb(shared_hsv);
-    } else {
-        shared_hsv.v = 0.85;
-        palette[0] = hsv_to_rgb(shared_hsv);
+    hsv_t bg = {
+        .h = first_accent_hsv.h,
+        .s = first_accent_hsv.s,
+        .v = offset + invert * bg_color_value
+    };
+    palette[0] = hsv_to_rgb(bg);
 
-        shared_hsv.v = 0.70;
-        palette[8] = hsv_to_rgb(shared_hsv);
-    }
+    hsv_t bg_alt = {
+        .h = first_accent_hsv.h,
+        .s = first_accent_hsv.s,
+        .v = offset + invert * (bg_color_value + bg_color_value_alt_diff)
+    };
+    palette[8] = hsv_to_rgb(bg_alt);
 
     /* Fg Color */
-    float shift_by = shared_hsv.v / 4.0f;
-    shift_by *= (shared_hsv.v >= 0.5) ? 1 : -1;
-    hsv_t fgcolor     = { first_accent_hsv.h, 0.15, 1.2f - shared_hsv.v};
-    hsv_t fgcolor_alt = { shared_hsv.h,       0.25, 0.5f + shift_by};
-    palette[15] = hsv_to_rgb(fgcolor);
-    palette[7]  = hsv_to_rgb(fgcolor_alt);
+    hsv_t fg = { bg.h,     0.15, 1.0f - bg.v};
+    palette[15] = hsv_to_rgb(fg);
 
-    /* Rest of the Color */
+    float shift_by = bg_alt.v / 4.0f;
+    shift_by *= (bg_alt.v >= 0.5) ? 1 : -1;
+
+    hsv_t fg_alt = { bg_alt.h, 0.25, 0.5f + shift_by};
+    palette[7]  = hsv_to_rgb(fg_alt);
+
     if (!monochrome) {
+        if (fabs(first_accent_hsv.v - bg.v) <= bg_min_value_diff) {
+            /* first_accent_hsv.v = clamp(first_accent_hsv.v + (bg_min_value_diff / 4.0f), 0.0, 0.94); */
+            bg.v     = clamp(bg.v     - (bg_min_value_diff / 5.2f), 0.07, 1.0);
+            bg_alt.v = clamp(bg_alt.v - (bg_min_value_diff / 5.2f), 0.07, 1.0);
+            palette[0] = hsv_to_rgb(bg);
+            palette[8] = hsv_to_rgb(bg_alt);
+        }
+
+        /* Accent Color */
         uint8_t a, b = 0;
         color_enum_to_mapping(tell_color(first_accent_hsv), &a, &b);
-        palette[a] = most_used.first;
+        palette[a] = hsv_to_rgb(first_accent_hsv);
         palette[b] = hsv_to_rgb((hsv_t) {first_accent_hsv.h, first_accent_hsv.s, first_accent_hsv.v - 0.1});
 
         a = b = 0;
         color_enum_to_mapping(tell_color(second_accent_hsv), &a, &b);
-        palette[a] = second_used.first;
+        palette[a] = hsv_to_rgb(second_accent_hsv);
         palette[b] = hsv_to_rgb((hsv_t) {second_accent_hsv.h, second_accent_hsv.s, second_accent_hsv.v - 0.1});
 
+        /* Others Color */
         color_e first_accent_color = tell_color(first_accent_hsv);
         float base_first_hue = get_base_hue(first_accent_color);
 
