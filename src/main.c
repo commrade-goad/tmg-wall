@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
      * 14: Yellow
      * 15: White
      */
-    rgb_t palette[16] = {0};
+    rgb_t palette[18] = {0}; /* 16 (+2 of slighly more black and white) */
 
     hsv_t first_accent_hsv = rgb_to_hsv(most_used.first);
     hsv_t second_accent_hsv = rgb_to_hsv(second_used.first);
@@ -137,15 +137,25 @@ int main(int argc, char **argv) {
     };
     palette[8] = hsv_to_rgb(bg_alt);
 
+    hsv_t bg_alt_2 = {
+        .h = first_accent_hsv.h,
+        .s = first_accent_hsv.s,
+        .v = offset + invert * (bg_color_value + (bg_color_value_alt_diff * 2))
+    };
+    palette[16] = hsv_to_rgb(bg_alt_2);
+
     /* Fg Color */
     hsv_t fg = { bg.h,     0.15, 1.0f - bg.v};
     palette[15] = hsv_to_rgb(fg);
 
-    float shift_by = bg_alt.v / 4.0f;
+    float shift_by = bg_alt.v / 16.0f;
     shift_by *= (bg_alt.v >= 0.5) ? 1 : -1;
 
     hsv_t fg_alt = { bg_alt.h, 0.25, 0.5f + shift_by};
     palette[7]  = hsv_to_rgb(fg_alt);
+
+    hsv_t fg_alt_2 = { bg_alt.h, 0.25, 0.5f + (shift_by * 2)};
+    palette[17]  = hsv_to_rgb(fg_alt_2);
 
     if (!monochrome) {
         if (fabs(first_accent_hsv.v - bg.v) <= bg_min_value_diff) {
@@ -228,7 +238,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     fprintf(out_file, "return {\n");
-    for(int i=0; i<16; i++) {
+    for(int i=0; i<18; i++) {
         fprintf(out_file, "\tcolor%.2d = 0x%x,\n", i, palette[i]);
     }
     fprintf(out_file, "\taccent1 = 0x%x,\n", most_used.first);
