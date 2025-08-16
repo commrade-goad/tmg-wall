@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
 
     /* Fg Color */
     float shift_by = shared_hsv.v / 4.0f;
-    shift_by *= (shared_hsv.v >= 0.5) ? -1 : 1;
+    shift_by *= (shared_hsv.v >= 0.5) ? 1 : -1;
     hsv_t fgcolor     = { first_accent_hsv.h, 0.15, 1.2f - shared_hsv.v};
     hsv_t fgcolor_alt = { shared_hsv.h,       0.25, 0.5f + shift_by};
     palette[15] = hsv_to_rgb(fgcolor);
