@@ -40,6 +40,10 @@ int main(int argc, char **argv) {
     fclose(in_file);
 
     /* -- Work -- */
+
+    const bool dark_mode = true;
+    const bool monochrome = false; /* no second accent, no s, v checkin */
+
     pair_t most_used    = {0};
     pair_t second_used  = {0};
 
@@ -69,9 +73,11 @@ int main(int argc, char **argv) {
             uint32_t count = ++freq[pixel];
             if (count == 1) ++color_count;
 
-            if (hsv.v < min_lightness || hsv.v > max_lightness ||
-                    hsv.s < min_saturation || hsv.s > max_saturation) {
-                continue;
+            if (!monochrome) {
+                if (hsv.v < min_lightness || hsv.v > max_lightness ||
+                        hsv.s < min_saturation || hsv.s > max_saturation) {
+                    continue;
+                }
             }
 
             if (count > most_used.second) {
@@ -79,7 +85,7 @@ int main(int argc, char **argv) {
                 most_used.second = count;
             }
 
-            if (count < most_used.second && count > second_used.second) {
+            if (!monochrome && count < most_used.second && count > second_used.second) {
                 hsv_t first_hsv = rgb_to_hsv(most_used.first);
 
                 // Compute circular hue distance
@@ -119,7 +125,6 @@ int main(int argc, char **argv) {
      * 15: White
      */
     rgb_t palette[16] = {0};
-    const bool dark_mode = true;
 
     hsv_t first_accent_hsv = rgb_to_hsv(most_used.first);
     hsv_t second_accent_hsv = rgb_to_hsv(second_used.first);
@@ -144,49 +149,55 @@ int main(int argc, char **argv) {
     palette[15] = 0xffffff - palette[0];
     palette[7]  = 0xffffff - palette[8];
 
-    /* Accent Color */
-    uint8_t a, b = 0;
-    color_enum_to_mapping(tell_color(first_accent_hsv), &a, &b);
-    palette[a] = most_used.first;
-    palette[b] = hsv_to_rgb((hsv_t) {first_accent_hsv.h, first_accent_hsv.s, first_accent_hsv.v - 0.1});
+    /* Rest of the Color */
+    if (!monochrome) {
+        uint8_t a, b = 0;
+        color_enum_to_mapping(tell_color(first_accent_hsv), &a, &b);
+        palette[a] = most_used.first;
+        palette[b] = hsv_to_rgb((hsv_t) {first_accent_hsv.h, first_accent_hsv.s, first_accent_hsv.v - 0.1});
 
-    a = b = 0;
-    color_enum_to_mapping(tell_color(second_accent_hsv), &a, &b);
-    palette[a] = second_used.first;
-    palette[b] = hsv_to_rgb((hsv_t) {second_accent_hsv.h, second_accent_hsv.s, second_accent_hsv.v - 0.1});
+        a = b = 0;
+        color_enum_to_mapping(tell_color(second_accent_hsv), &a, &b);
+        palette[a] = second_used.first;
+        palette[b] = hsv_to_rgb((hsv_t) {second_accent_hsv.h, second_accent_hsv.s, second_accent_hsv.v - 0.1});
 
-    color_e first_accent_color = tell_color(first_accent_hsv);
-    float base_first_hue = get_base_hue(first_accent_color);
-    
-    float hue_diff = first_accent_hsv.h - base_first_hue;
+        color_e first_accent_color = tell_color(first_accent_hsv);
+        float base_first_hue = get_base_hue(first_accent_color);
 
-    if (hue_diff > 0.5f) hue_diff -= 1.0f;
-    else if (hue_diff < -0.5f) hue_diff += 1.0f;
+        float hue_diff = first_accent_hsv.h - base_first_hue;
 
-    for(int i=0; i<16; i++) {
-        if(palette[i] != 0) continue;
-        
-        color_e color_enum = mapping_to_color_enum(i);
-        if (color_enum == SHADE) continue;
-        
-        float base_hue = get_base_hue(color_enum);
-        float adjusted_hue = base_hue + hue_diff;
-        if (adjusted_hue > 1.0f) adjusted_hue -= 1.0f;
-        else if (adjusted_hue < 0.0f) adjusted_hue += 1.0f;
-        
-        hsv_t color_hsv = {
-            .h = adjusted_hue,
-            .s = first_accent_hsv.s,
-            .v = first_accent_hsv.v
-        };
-        
-        uint8_t a = 0, b = 0;
-        color_enum_to_mapping(color_enum, &a, &b);
+        if (hue_diff > 0.5f) hue_diff -= 1.0f;
+        else if (hue_diff < -0.5f) hue_diff += 1.0f;
 
-        palette[a] = hsv_to_rgb(color_hsv);
+        for(int i=0; i<16; i++) {
+            if(palette[i] != 0) continue;
 
-        hsv_t darker = {color_hsv.h, color_hsv.s, color_hsv.v - 0.1f};
-        palette[b] = hsv_to_rgb(darker);
+            color_e color_enum = mapping_to_color_enum(i);
+            if (color_enum == SHADE) continue;
+
+            float base_hue = get_base_hue(color_enum);
+            float adjusted_hue = base_hue + hue_diff;
+            if (adjusted_hue > 1.0f) adjusted_hue -= 1.0f;
+            else if (adjusted_hue < 0.0f) adjusted_hue += 1.0f;
+
+            hsv_t color_hsv = {
+                .h = adjusted_hue,
+                .s = first_accent_hsv.s,
+                .v = first_accent_hsv.v
+            };
+
+            uint8_t a = 0, b = 0;
+            color_enum_to_mapping(color_enum, &a, &b);
+
+            palette[a] = hsv_to_rgb(color_hsv);
+
+            hsv_t darker = {color_hsv.h, color_hsv.s, color_hsv.v - 0.1f};
+            palette[b] = hsv_to_rgb(darker);
+        }
+    } else {
+        /* TODO: Monochrome is not yet implemented! */
+        fprintf(stderr, "TODO: Not yet implemented!");
+        assert(false);
     }
 
     for(int i=0; i<16; i++) {
