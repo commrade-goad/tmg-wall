@@ -135,19 +135,23 @@ int main(int argc, char **argv) {
         shared_hsv.v = 0.15;
         palette[0] = hsv_to_rgb(shared_hsv);
 
-        shared_hsv.v = 0.20;
+        shared_hsv.v = 0.30;
         palette[8] = hsv_to_rgb(shared_hsv);
     } else {
         shared_hsv.v = 0.85;
         palette[0] = hsv_to_rgb(shared_hsv);
 
-        shared_hsv.v = 0.80;
+        shared_hsv.v = 0.70;
         palette[8] = hsv_to_rgb(shared_hsv);
     }
 
     /* Fg Color */
-    palette[15] = 0xffffff - palette[0];
-    palette[7]  = 0xffffff - palette[8];
+    float shift_by = shared_hsv.v / 4.0f;
+    shift_by *= (shared_hsv.v >= 0.5) ? -1 : 1;
+    hsv_t fgcolor     = { first_accent_hsv.h, 0.15, 1.2f - shared_hsv.v};
+    hsv_t fgcolor_alt = { shared_hsv.h,       0.25, 0.5f + shift_by};
+    palette[15] = hsv_to_rgb(fgcolor);
+    palette[7]  = hsv_to_rgb(fgcolor_alt);
 
     /* Rest of the Color */
     if (!monochrome) {
