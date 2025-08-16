@@ -193,19 +193,25 @@ color_e mapping_to_color_enum(uint8_t a) {
 float get_base_hue(color_e color) {
     switch (color) {
         case RED:
-            return 0.0f;  // midpoint between 330/360 and 15/360, wrapping around 0/360
+            return 0.0f;
         case ORANGE:
-            return 0.125f;  // midpoint between 15/360 and 75/360
+            return 0.125f;
         case GREEN:
-            return 0.3125f;  // midpoint between 75/360 and 150/360
+            return 0.3125f;
         case CYAN:
-            return 0.5f;  // midpoint between 150/360 and 210/360
+            return 0.5f;
         case BLUE:
-            return 0.6667f;  // midpoint between 210/360 and 270/360
+            /* the real one is : */
+            /* return 0.6667f; */
+            /* but it just produce purple so ima edit it to be less */
+            return 0.576f;
         case MAGENTA:
-            return 0.8333f;  // midpoint between 270/360 and 330/360
+            /* the real one is : */
+            /* return 0.8333f; */
+            /* but it just produce too much red so ima edit it to be less */
+            return 0.7888f;
         case SHADE:
-            return 0.0f;  // default, but not really relevant for shades
+            return 0.0f;
         default:
             return 0.0f;
     }

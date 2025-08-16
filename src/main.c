@@ -50,12 +50,12 @@ int main(int argc, char **argv) {
     uint16_t *freq = calloc(0x1000000, sizeof(uint16_t));
 
     static const float max_lightness = 0.83;
-    static const float min_lightness = 0.25;
+    static const float min_lightness = 0.40;
 
-    static const float min_saturation = 0.15;
-    static const float max_saturation = 0.95;
+    static const float min_saturation = 0.20;
+    static const float max_saturation = 0.87;
 
-    static const float second_color_hue_diff = 0.1;
+    static const float second_color_hue_diff = 0.083;
 
     size_t color_count = 0;
     for (int y = 0; y < height; y++) {
