@@ -7,6 +7,7 @@
 #include "stb_image.h"
 #include "magician.h"
 #include "helper.h"
+#include "config.h"
 
 #define MIN_ARGS 3
 #define DEFAULT_SIZE 512
@@ -45,22 +46,6 @@ int main(int argc, char **argv) {
     pair_t second_used  = {0};
 
     uint16_t *freq = calloc(0x1000000, sizeof(uint16_t));
-
-    /* == CONFIG == */
-    const bool dark_mode  = true;
-    const bool monochrome = false; /* no second accent, no s, v checkin */
-
-    static const float max_lightness  = 0.83;
-    static const float min_lightness  = 0.40;
-    static const float min_saturation = 0.20;
-    static const float max_saturation = 0.87;
-
-    static const float second_color_hue_diff = 0.083;
-
-    static const float bg_color_value          = 0.13;
-    static const float bg_color_value_alt_diff = 0.10;
-    static const float bg_min_value_diff       = 0.38;
-    /* == CONFIG == */
 
     size_t color_count = 0;
     for (int y = 0; y < height; y++) {
@@ -165,8 +150,13 @@ int main(int argc, char **argv) {
     if (!monochrome) {
         if (fabs(first_accent_hsv.v - bg.v) <= bg_min_value_diff) {
             /* first_accent_hsv.v = clamp(first_accent_hsv.v + (bg_min_value_diff / 4.0f), 0.0, 0.94); */
-            bg.v     = clamp(bg.v     - (bg_min_value_diff / 5.2f), 0.07, 1.0);
-            bg_alt.v = clamp(bg_alt.v - (bg_min_value_diff / 5.2f), 0.07, 1.0);
+            if (dark_mode) {
+                bg.v     = clamp(bg.v     - (bg_min_value_diff / 5.2f), 0.07, 1.0);
+                bg_alt.v = clamp(bg_alt.v - (bg_min_value_diff / 5.2f), 0.07, 1.0);
+            } else {
+                bg.v     = clamp(bg.v     + (bg_min_value_diff / 5.2f), 0.07, 1.0);
+                bg_alt.v = clamp(bg_alt.v + (bg_min_value_diff / 5.2f), 0.07, 1.0);
+            }
             palette[0] = hsv_to_rgb(bg);
             palette[8] = hsv_to_rgb(bg_alt);
         }
@@ -198,7 +188,8 @@ int main(int argc, char **argv) {
             if (color_enum == SHADE) continue;
 
             float base_hue = get_base_hue(color_enum);
-            float adjusted_hue = base_hue + hue_diff;
+            float adjusted_hue =
+                clamp(base_hue + hue_diff, base_hue - color_hue_range, base_hue + color_hue_range);
             if (adjusted_hue > 1.0f) adjusted_hue -= 1.0f;
             else if (adjusted_hue < 0.0f) adjusted_hue += 1.0f;
 
@@ -222,11 +213,13 @@ int main(int argc, char **argv) {
         assert(false);
     }
 
+    /*
     for(int i=0; i<16; i++) {
         printf("The color %.2d: %x \n", i, palette[i]);
     }
     printf("The color %.2d: %x \n", 99, most_used.first);
     printf("The color %.2d: %x \n", 98, second_used.first);
+    */
 
     /* -- Output the file -- */
     FILE *out_file = fopen(argv[2], "w");
