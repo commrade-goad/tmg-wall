@@ -38,6 +38,9 @@ rgb_t hsv_to_rgb(hsv_t hsv) {
     float v = hsv.v;
 
     float r, g, b;
+    r = 0;
+    g = 0;
+    b = 0;
 
     if (s == 0.0f) {
         // Achromatic (grey)

@@ -6,11 +6,6 @@
 typedef uint32_t rgb_t;
 
 typedef struct  {
-    uint8_t r, g, b;
-    uint8_t padding; /* Not used */
-} rgbh_t;
-
-typedef struct  {
     float h, s, v;
 } hsv_t;
 

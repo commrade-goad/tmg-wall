@@ -93,6 +93,7 @@ int main(int argc, char **argv) {
             }
         }
     }
+
     /* Don't need it anymore goodbye! */
     stbi_image_free(image);
     free(freq);
@@ -154,33 +155,60 @@ int main(int argc, char **argv) {
     palette[a] = second_used.first;
     palette[b] = hsv_to_rgb((hsv_t) {second_accent_hsv.h, second_accent_hsv.s, second_accent_hsv.v - 0.1});
 
-    shared_hsv = first_accent_hsv;
+    color_e first_accent_color = tell_color(first_accent_hsv);
+    float base_first_hue = get_base_hue(first_accent_color);
+    
+    float hue_diff = first_accent_hsv.h - base_first_hue;
+
+    if (hue_diff > 0.5f) hue_diff -= 1.0f;
+    else if (hue_diff < -0.5f) hue_diff += 1.0f;
+
     for(int i=0; i<16; i++) {
         if(palette[i] != 0) continue;
-        // Dear Claude/Copilot:
-        // This one fails... some color wont be filled up...
-        // can you help me finish this?
-        // So i need you to make a new function oh helper.c that will accept the color_e
-        // then will return the base hue value of that thing so if the range is 30 to 75 then the middle
-        // will be picked.
-        //
-        // After that funciton created make it get the base hue from the accent1 and get how many
-        // +- needed to get the accent1 hue (get the diff) after that diff is available
-        // now start generating it for the rest using the first accent just change the
-        // hue to that base for color n +- the diff then dont forget to gen the dim one too
-        // just minus the value by 0.1 and its good.
-        // Ok help me No Yapping or pull request just do it here.
-        shared_hsv.h += 0.082;
-        color_e color_enum = tell_color(shared_hsv);
-        a = b = 0;
-        color_enum_to_mapping(tell_color(shared_hsv), &a, &b);
-        palette[a] = hsv_to_rgb(shared_hsv); 
-        palette[b] = hsv_to_rgb((hsv_t) {shared_hsv.h, shared_hsv.s, shared_hsv.v - 0.1});
+        
+        color_e color_enum = mapping_to_color_enum(i);
+        if (color_enum == SHADE) continue;
+        
+        float base_hue = get_base_hue(color_enum);
+        float adjusted_hue = base_hue + hue_diff;
+        if (adjusted_hue > 1.0f) adjusted_hue -= 1.0f;
+        else if (adjusted_hue < 0.0f) adjusted_hue += 1.0f;
+        
+        hsv_t color_hsv = {
+            .h = adjusted_hue,
+            .s = first_accent_hsv.s,
+            .v = first_accent_hsv.v
+        };
+        
+        uint8_t a = 0, b = 0;
+        color_enum_to_mapping(color_enum, &a, &b);
+
+        palette[a] = hsv_to_rgb(color_hsv);
+
+        hsv_t darker = {color_hsv.h, color_hsv.s, color_hsv.v - 0.1f};
+        palette[b] = hsv_to_rgb(darker);
     }
 
     for(int i=0; i<16; i++) {
-        printf("The color %d: %x \n", i, palette[i]);
+        printf("The color %.2d: %x \n", i, palette[i]);
     }
+    printf("The color %.2d: %x \n", 99, most_used.first);
+    printf("The color %.2d: %x \n", 98, second_used.first);
 
+    /* -- Output the file -- */
+    FILE *out_file = fopen(argv[2], "w");
+    if (!out_file) {
+        fprintf(stderr, "ERROR: Failed to open the file: %s\n", strerror(errno));
+        return 1;
+    }
+    fprintf(out_file, "return {\n");
+    for(int i=0; i<16; i++) {
+        fprintf(out_file, "\tcolor%.2d = 0x%x,\n", i, palette[i]);
+    }
+    fprintf(out_file, "\taccent1 = 0x%x,\n", most_used.first);
+    fprintf(out_file, "\taccent2 = 0x%x\n", second_used.first);
+    fprintf(out_file, "}\n");
+    
+    fclose(out_file);
     return 0;
 }
