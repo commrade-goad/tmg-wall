@@ -8,12 +8,28 @@
 #include "magician.h"
 #include "helper.h"
 #include "config.h"
+#include "version.h"
 
 #define MIN_ARGS 3
 #define DEFAULT_SIZE 512
 
 int main(int argc, char **argv) {
     /* -- Opening -- */
+    if (argc == 2) {
+        if (argv[1][0] == '-') {
+            switch (argv[1][1]) {
+                case 'h':
+                    printf("%s [infile] [outfile]\n", argv[0]);
+                    break;
+                case 'v':
+                    printf("%s %d.%d.%d\n", argv[0], VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+                    break;
+                default:
+                    fprintf(stderr, "ERROR: Not a valid argument!\n");
+                    break;
+            }
+        }
+    }
     if (argc < MIN_ARGS) {
         fprintf(stderr, "ERROR: Not enought argument!\n");
         return 1;
