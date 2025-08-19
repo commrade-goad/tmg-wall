@@ -1,5 +1,5 @@
 #define STB_IMAGE_IMPLEMENTATION
-#define MAGICIAN_IMPLEMENTATION 
+#define MAGICIAN_IMPLEMENTATION
 
 #include <errno.h>
 #include <stdio.h>
@@ -130,6 +130,7 @@ int main(int argc, char **argv) {
      * 14: Yellow
      * 15: White
      */
+
     rgb_t palette[18] = {0}; /* 16 (+2 of slighly more black and white) */
 
     hsv_t first_accent_hsv = rgb_to_hsv(most_used.first);
@@ -173,9 +174,21 @@ int main(int argc, char **argv) {
     hsv_t fg_alt_2 = { bg_alt.h, 0.25, 0.5f + (shift_by * 2)};
     palette[17]  = hsv_to_rgb(fg_alt_2);
 
+    bool swapped = false;
+    if (fabs(first_accent_hsv.v - bg.v) <= bg_min_value_diff) {
+        hsv_t tmp = first_accent_hsv;
+        first_accent_hsv = second_accent_hsv;
+        second_accent_hsv = tmp;
+        swapped = true;
+    }
+
     if (!monochrome) {
         if (fabs(first_accent_hsv.v - bg.v) <= bg_min_value_diff) {
-            /* first_accent_hsv.v = clamp(first_accent_hsv.v + (bg_min_value_diff / 4.0f), 0.0, 0.94); */
+            if (swapped) {
+                hsv_t tmp = first_accent_hsv;
+                first_accent_hsv = second_accent_hsv;
+                second_accent_hsv = tmp;
+            }
             if (dark_mode) {
                 bg.v     = clamp(bg.v     - (bg_min_value_diff / 5.2f), 0.07, 1.0);
                 bg_alt.v = clamp(bg_alt.v - (bg_min_value_diff / 5.2f), 0.07, 1.0);
@@ -215,7 +228,7 @@ int main(int argc, char **argv) {
 
             float base_hue = get_base_hue(color_enum);
             float adjusted_hue =
-                clamp(base_hue + hue_diff, base_hue - color_hue_range, base_hue + color_hue_range);
+                clamp(base_hue + hue_diff, base_hue - (color_hue_range * 0.5f), base_hue + (color_hue_range * 0.5f));
             if (adjusted_hue > 1.0f) adjusted_hue -= 1.0f;
             else if (adjusted_hue < 0.0f) adjusted_hue += 1.0f;
 
@@ -239,14 +252,6 @@ int main(int argc, char **argv) {
         assert(false);
     }
 
-    /*
-    for(int i=0; i<16; i++) {
-        printf("The color %.2d: %x \n", i, palette[i]);
-    }
-    printf("The color %.2d: %x \n", 99, most_used.first);
-    printf("The color %.2d: %x \n", 98, second_used.first);
-    */
-
     /* -- Output the file -- */
     FILE *out_file = fopen(argv[2], "w");
     if (!out_file) {
@@ -260,7 +265,7 @@ int main(int argc, char **argv) {
     fprintf(out_file, "\taccent1 = 0x%x,\n", most_used.first);
     fprintf(out_file, "\taccent2 = 0x%x\n", second_used.first);
     fprintf(out_file, "}\n");
-    
+
     fclose(out_file);
     return 0;
 }

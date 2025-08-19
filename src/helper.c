@@ -201,15 +201,9 @@ float get_base_hue(color_e color) {
         case CYAN:
             return 0.5f;
         case BLUE:
-            /* the real one is : */
-            /* return 0.6667f; */
-            /* but it just produce purple so ima edit it to be less */
-            return 0.576f;
+            return 0.6667f;
         case MAGENTA:
-            /* the real one is : */
-            /* return 0.8333f; */
-            /* but it just produce too much red so ima edit it to be less */
-            return 0.7888f;
+            return 0.8333f;
         case SHADE:
             return 0.0f;
         default:
