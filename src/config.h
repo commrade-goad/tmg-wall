@@ -2,9 +2,8 @@
 #define CONFIG_H
 
 const bool dark_mode  = true;
-const bool monochrome = false; /* no second accent, no s, v checkin */
 
-static const float max_lightness  = 0.83;
+static const float max_lightness  = 0.70;
 static const float min_lightness  = 0.50; /* 0.4 */
 static const float min_saturation = 0.20;
 static const float max_saturation = 0.88;

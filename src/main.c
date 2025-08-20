@@ -15,6 +15,7 @@
 
 int main(int argc, char **argv) {
     /* -- Opening -- */
+    bool monochrome = false;
     if (argc == 2) {
         if (argv[1][0] == '-') {
             switch (argv[1][1]) {
@@ -33,6 +34,18 @@ int main(int argc, char **argv) {
     if (argc < MIN_ARGS) {
         fprintf(stderr, "ERROR: Not enought argument!\n");
         return 1;
+    }
+    if (argc == MIN_ARGS + 1) {
+        if (argv[MIN_ARGS][0] == '-') {
+            switch (argv[MIN_ARGS][1]) {
+                case 'm':
+                    monochrome = true;
+                    break;
+                default:
+                    fprintf(stderr, "ERROR: Not a valid argument!\n");
+                    break;
+            }
+        }
     }
 
     FILE *in_file = fopen(argv[1], "rb");
@@ -120,8 +133,8 @@ int main(int argc, char **argv) {
      * 4 : Dark Red
      * 5 : Dark Magenta
      * 6 : Orange
-     * 7 : Light Gray
-     * 8 : Dark Gray
+     * 7 : White but remove the lightness abit
+     * 8 : Black but add the lightness abit
      * 9 : Light Blue
      * 10: Light Green
      * 11: Light Cyan
@@ -129,60 +142,160 @@ int main(int argc, char **argv) {
      * 13: Light Magenta
      * 14: Yellow
      * 15: White
+     * 16: Same as 8 but lot more light
+     * 17: Same as 7 but lot more dark
      */
 
     rgb_t palette[18] = {0}; /* 16 (+2 of slighly more black and white) */
 
-    hsv_t first_accent_hsv = rgb_to_hsv(most_used.first);
-    hsv_t second_accent_hsv = rgb_to_hsv(second_used.first);
+    if (monochrome) {
+        /* Get base color from the most used color */
+        hsv_t base_hsv = rgb_to_hsv(most_used.first);
+        float base = 0.10;
+        base_hsv.s = base + (base_hsv.s / 6.0f);
+        base_hsv.v = 0.5 + base;
+        most_used.first = hsv_to_rgb(base_hsv);
 
-    /* Bg Color */
-    double invert = dark_mode ? 1.0 : -1.0;
-    double offset = dark_mode ? 0.0 : 1.0;
+        /* Bg Color */
+        double invert = dark_mode ? 1.0 : -1.0;
+        double offset = dark_mode ? 0.0 : 1.0;
 
-    hsv_t bg = {
-        .h = first_accent_hsv.h,
-        .s = first_accent_hsv.s,
-        .v = offset + invert * bg_color_value
-    };
-    palette[0] = hsv_to_rgb(bg);
+        hsv_t bg = {
+            .h = base_hsv.h,
+            .s = 0.15,  /* Low saturation for monochrome */
+            .v = offset + invert * bg_color_value
+        };
 
-    hsv_t bg_alt = {
-        .h = first_accent_hsv.h,
-        .s = first_accent_hsv.s,
-        .v = offset + invert * (bg_color_value + bg_color_value_alt_diff)
-    };
-    palette[8] = hsv_to_rgb(bg_alt);
+        palette[0] = hsv_to_rgb(bg);
 
-    hsv_t bg_alt_2 = {
-        .h = first_accent_hsv.h,
-        .s = first_accent_hsv.s,
-        .v = offset + invert * (bg_color_value + (bg_color_value_alt_diff * 2))
-    };
-    palette[16] = hsv_to_rgb(bg_alt_2);
+        hsv_t bg_alt = {
+            .h = base_hsv.h,
+            .s = 0.15,
+            .v = offset + invert * (bg_color_value + bg_color_value_alt_diff)
+        };
+        palette[8] = hsv_to_rgb(bg_alt);
 
-    /* Fg Color */
-    hsv_t fg = { bg.h,     0.15, 1.0f - bg.v};
-    palette[15] = hsv_to_rgb(fg);
+        hsv_t bg_alt_2 = {
+            .h = base_hsv.h,
+            .s = 0.15,
+            .v = offset + invert * (bg_color_value + (bg_color_value_alt_diff * 2))
+        };
+        palette[16] = hsv_to_rgb(bg_alt_2);
 
-    float shift_by = bg_alt.v / 16.0f;
-    shift_by *= (bg_alt.v >= 0.5) ? 1 : -1;
+        /* Fg Color */
+        hsv_t fg = { base_hsv.h, 0.15, 1.0f - bg.v };
+        palette[15] = hsv_to_rgb(fg);
 
-    hsv_t fg_alt = { bg_alt.h, 0.25, 0.5f + shift_by};
-    palette[7]  = hsv_to_rgb(fg_alt);
+        float shift_by = bg_alt.v / 16.0f;
+        shift_by *= (bg_alt.v >= 0.5) ? 1 : -1;
 
-    hsv_t fg_alt_2 = { bg_alt.h, 0.25, 0.5f + (shift_by * 2)};
-    palette[17]  = hsv_to_rgb(fg_alt_2);
+        hsv_t fg_alt = { base_hsv.h, 0.15, 0.5f + shift_by };
+        palette[7] = hsv_to_rgb(fg_alt);
 
-    bool swapped = false;
-    if (fabs(first_accent_hsv.v - bg.v) <= bg_min_value_diff) {
-        hsv_t tmp = first_accent_hsv;
-        first_accent_hsv = second_accent_hsv;
-        second_accent_hsv = tmp;
-        swapped = true;
-    }
+        hsv_t fg_alt_2 = { base_hsv.h, 0.15, 0.5f + (shift_by * 2) };
+        palette[17] = hsv_to_rgb(fg_alt_2);
 
-    if (!monochrome) {
+        /* Generate remaining colors with graduated brightness levels */
+        for(int i = 1; i < 16; i++) {
+            if (palette[i] != 0) continue;  /* Skip if already set */
+
+            /* Skip background/foreground colors that are already set */
+            if (i == 0 || i == 8 || i == 15 || i == 7) continue;
+
+            /* Create a more evenly distributed brightness scale with higher range */
+            float brightness;
+            float saturation;
+
+            if (dark_mode) {
+                /* For dark mode: distribute between 0.5 and 1.0 */
+                if (i < 8) {
+                    /* Colors 1-7: Spread between 0.7 and 0.95 */
+                    brightness = 0.7 + (0.25 * (i - 1) / 6.0);
+                } else {
+                    /* Colors 9-14: Spread between 0.5 and 0.65 */
+                    brightness = 0.65 - (0.15 * (i - 9) / 5.0);
+                }
+            } else {
+                /* For light mode: distribute between 0.5 and 1.0 but inverted */
+                if (i < 8) {
+                    /* Colors 1-7: Spread between 0.8 and 0.6 */
+                    brightness = 0.8 - (0.2 * (i - 1) / 6.0);
+                } else {
+                    /* Colors 9-14: Spread between 0.9 and 0.7 */
+                    brightness = 0.7 + (0.2 * (i - 9) / 5.0);
+                }
+            }
+
+            /* Ensure we don't duplicate colors by making step sizes uneven */
+            brightness += (i % 5) * 0.02;  /* Larger offset for more variation */
+
+            /* Set brightness and saturation levels */
+            brightness = clamp(brightness, 0.5, 0.95);  /* Minimum brightness of 0.5 */
+
+            /* Vary saturation to increase distinction */
+            saturation = 0.1 + (i % 4) * 0.05;
+            saturation = clamp(saturation, 0.05, 0.3);
+
+            hsv_t color_hsv = {
+                .h = base_hsv.h,
+                .s = saturation,
+                .v = brightness
+            };
+
+            palette[i] = hsv_to_rgb(color_hsv);
+        }
+        second_used = most_used;
+    } else {
+        hsv_t first_accent_hsv = rgb_to_hsv(most_used.first);
+        if (second_used.first == 0 || second_used.second <= 0) second_used = most_used;
+        hsv_t second_accent_hsv = rgb_to_hsv(second_used.first);
+
+        /* Bg Color */
+        double invert = dark_mode ? 1.0 : -1.0;
+        double offset = dark_mode ? 0.0 : 1.0;
+
+        hsv_t bg = {
+            .h = first_accent_hsv.h,
+            .s = first_accent_hsv.s,
+            .v = offset + invert * bg_color_value
+        };
+        palette[0] = hsv_to_rgb(bg);
+
+        hsv_t bg_alt = {
+            .h = first_accent_hsv.h,
+            .s = first_accent_hsv.s,
+            .v = offset + invert * (bg_color_value + bg_color_value_alt_diff)
+        };
+        palette[8] = hsv_to_rgb(bg_alt);
+
+        hsv_t bg_alt_2 = {
+            .h = first_accent_hsv.h,
+            .s = first_accent_hsv.s,
+            .v = offset + invert * (bg_color_value + (bg_color_value_alt_diff * 2))
+        };
+        palette[16] = hsv_to_rgb(bg_alt_2);
+
+        /* Fg Color */
+        hsv_t fg = { bg.h,     0.15, 1.0f - bg.v};
+        palette[15] = hsv_to_rgb(fg);
+
+        float shift_by = bg_alt.v / 16.0f;
+        shift_by *= (bg_alt.v >= 0.5) ? 1 : -1;
+
+        hsv_t fg_alt = { bg_alt.h, 0.25, 0.5f + shift_by};
+        palette[7]  = hsv_to_rgb(fg_alt);
+
+        hsv_t fg_alt_2 = { bg_alt.h, 0.25, 0.5f + (shift_by * 2)};
+        palette[17]  = hsv_to_rgb(fg_alt_2);
+
+        bool swapped = false;
+        if (fabs(first_accent_hsv.v - bg.v) <= bg_min_value_diff) {
+            hsv_t tmp = first_accent_hsv;
+            first_accent_hsv = second_accent_hsv;
+            second_accent_hsv = tmp;
+            swapped = true;
+        }
+
         if (fabs(first_accent_hsv.v - bg.v) <= bg_min_value_diff) {
             if (swapped) {
                 hsv_t tmp = first_accent_hsv;
@@ -246,10 +359,6 @@ int main(int argc, char **argv) {
             hsv_t darker = {color_hsv.h, color_hsv.s, color_hsv.v - 0.1f};
             palette[b] = hsv_to_rgb(darker);
         }
-    } else {
-        /* TODO: Monochrome is not yet implemented! */
-        fprintf(stderr, "TODO: Not yet implemented!");
-        assert(false);
     }
 
     /* -- Output the file -- */
