@@ -1,5 +1,5 @@
 CC     = g++
-CFLAGS = -Wall -Wextra -ggdb
+CFLAGS = -Wall -Wextra -O2
 LIBS   = -lm
 
 SRC = $(wildcard *.cpp)

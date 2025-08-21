@@ -139,8 +139,8 @@ void color_enum_to_mapping(color_e color, uint8_t *a, uint8_t *b) {
             *b = 2;
             return;
         case BLUE:
-            *a = 1;
-            *b = 9;
+            *a = 9;
+            *b = 1;
             return;
         case CYAN:
             *a = 11;

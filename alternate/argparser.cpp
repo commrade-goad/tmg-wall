@@ -4,6 +4,14 @@
 #include <string.h>
 #include <stdlib.h>
 
+static inline void print_help(const char *name) {
+    printf("%s [infile] [outfile] <flags>\n", name);
+    printf("<flags> :\n");
+    printf("   -c : use more popping color.\n");
+    printf("   -h : print this help.\n");
+    printf("   -v : print version.\n");
+}
+
 Args init_args(int argc, char **argv) {
     Args a = {0};
     bool is_flag = false;
@@ -18,13 +26,14 @@ Args init_args(int argc, char **argv) {
                     a.exit = true;
                     break;
                 case 'h':
+                    print_help(argv[0]);
                     a.exit = true;
                     break;
                 case 'c':
                     a.colorful_mode = true;
                     break;
                 default:
-                    fprintf(stderr, "ERROR: Unknown flags!");
+                    fprintf(stderr, "ERROR: Unknown flags `%s`!\n", current);
                     a.exit = true;
                     break;
             }

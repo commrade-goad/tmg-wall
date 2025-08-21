@@ -4,11 +4,11 @@
 #include <stdio.h>
 
 #define NAME "tmg-wall-alt"
-#define VERSION_MAYOR 0
-#define VERSION_MINOR 1
+#define VERSION_MAYOR 1
+#define VERSION_MINOR 0
 
 static inline void print_version() {
-    printf("%s %d.%d", NAME, VERSION_MAYOR, VERSION_MINOR);
+    printf("%s %d.%d\n", NAME, VERSION_MAYOR, VERSION_MINOR);
 }
 
 #endif /* VERSION_H */
