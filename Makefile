@@ -8,7 +8,7 @@ OBJ = $(SRC:.c=.o)
 all: $(OBJ)
 	$(CC) $(OBJ) -o tmg-wall $(LIBS)
 
-%.o: %.cpp
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:

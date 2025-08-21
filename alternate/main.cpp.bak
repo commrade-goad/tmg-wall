@@ -1,0 +1,65 @@
+#define STB_IMAGE_IMPLEMENTATION
+#define MAGICIAN_IMPLEMENTATION
+
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include "helper.h"
+#include "argparser.h"
+#include "magician.h"
+#include "stb_image.h"
+
+bool is_hue_different_enough(hsv_t new_hsv, hsv_t* selected_hsvs, int selected_count) {
+    for (int i = 0; i < selected_count; i++) {
+        float hue_diff = fabsf(new_hsv.h - selected_hsvs[i].h);
+        if (hue_diff > 180.0f) {
+            hue_diff = 360.0f - hue_diff;
+        }
+        if (hue_diff < 30.0f) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void process_image(uint8_t* image, int w, int h, int n) {
+    rgb_t most_used_colors[5] = {0};
+    uint32_t most_used_freqs[5] = {0};
+
+    // for (int i = 0; i < 5; i++) {
+    //     printf("%d) most used color are %.6x with the freq of %u\n", i, most_used_colors[i], most_used_freqs[i]);
+    // }
+}
+
+int main(int argc, char **argv) {
+    Args a = init_args(argc, argv);
+    if (a.exit) return 0;
+    if (!a.infile) return 1;
+    if (!a.outfile) return 1;
+
+    FILE *input = fopen(a.infile, "rb");
+    if (!input) {
+        fprintf(stderr, "ERROR: Failed to read the file because : %s\n", strerror(errno));
+        deinit_args(&a);
+        return 1;
+    }
+
+    if (!is_png(input) && !is_jpeg(input)) {
+        fprintf(stderr, "ERROR: File `%s` is not a png or jpeg file!\n", a.infile);
+        return 1;
+    }
+
+    int w, h, n;
+    unsigned char *image = stbi_load_from_file(input, &w, &h, &n, 4);
+    if (!image) {
+        fprintf(stderr, "ERROR: Failed to parse file `%s`: %s\n", a.infile, stbi_failure_reason());
+        return 1;
+    }
+    fclose(input);
+
+    process_image(image, w, h, n);
+
+    stbi_image_free(image);
+    deinit_args(&a);
+    return 0;
+}
