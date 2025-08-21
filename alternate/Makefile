@@ -12,5 +12,5 @@ all: $(OBJ)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ) tmg-wall
+	rm -f $(OBJ) tmg-wall-alt
 

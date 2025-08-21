@@ -34,10 +34,13 @@ bool is_hue_different_enough(hsv_t new_hsv, hsv_t* selected_hsvs, int selected_c
     return true;
 }
 
-void process_image(uint8_t* image, int w, int h, int n, Args *args) {
-    static const int target_sel_count= 5;
+void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palette) {
+    static const int target_sel_count = 6;
     rgb_t most_used_colors[target_sel_count] = {0};
     uint32_t most_used_freqs[target_sel_count] = {0};
+
+    float value_avg      = 0.0f;
+    float saturation_avg = 0.0f;
 
     std::unordered_map<rgb_t, ColorData> color_map;
 
@@ -55,6 +58,8 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args) {
                 it->second.frequency++;
             } else {
                 hsv_t hsv = rgb_to_hsv(pixel);
+                value_avg += hsv.v;
+                saturation_avg += hsv.s;
                 color_map[pixel] = {hsv, 1};
             }
         }
@@ -72,11 +77,16 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args) {
             return a.second.frequency > b.second.frequency;
             });
 
+    if (!color_vec.empty()) {
+        value_avg      /= color_vec.size();
+        saturation_avg /= color_vec.size();
+    } else {
+        value_avg = 0.0f;
+        saturation_avg = 0.0f;
+    }
+
     hsv_t selected_hsvs[target_sel_count] = {0};
     int selected_count = 0;
-
-    float value_avg      = 0.0f;
-    float saturation_avg = 0.0f;
 
     for (const auto& pair : color_vec) {
         if (selected_count >= target_sel_count) break;
@@ -84,11 +94,8 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args) {
         rgb_t color = pair.first;
         ColorData data = pair.second;
 
-        value_avg += data.hsv.v;
-        saturation_avg += data.hsv.s;
-
-        bool requirement = (data.hsv.v > 0.40 && data.hsv.s > 0.20);
-        if (args->colorful_mode) requirement = (data.hsv.v > 0.47 && data.hsv.s > 0.27);
+        bool requirement = (data.hsv.v >= (value_avg / 1.5f) && data.hsv.s >= (saturation_avg / 2.0f));
+        if (args->colorful_mode) requirement = (data.hsv.v >= (value_avg / 1.2f) && data.hsv.s >= (saturation_avg / 1.7f));
 
         if ((selected_count == 0 || is_hue_different_enough(data.hsv, selected_hsvs, selected_count)) && requirement)
         {
@@ -97,14 +104,6 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args) {
             selected_hsvs[selected_count] = data.hsv;
             selected_count++;
         }
-    }
-
-    if (!color_vec.empty()) {
-        value_avg      /= color_vec.size();
-        saturation_avg /= color_vec.size();
-    } else {
-        value_avg = 0.0f;
-        saturation_avg = 0.0f;
     }
 
     if (args->colorful_mode) {
@@ -127,11 +126,7 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args) {
 
             if (!monochrome_mode) {
                 hue = 0.0f;
-                if (selected_count > 0) {
-                    hue = fmodf(selected_hsvs[0].h + (360.0f / target_sel_count) * i, 360.0f);
-                } else {
-                    hue = (360.0f / target_sel_count) * i;
-                }
+                hue = fmodf(selected_hsvs[std::max(i - 1, 0)].h + (360.0f / target_sel_count) * i, 360.0f);
             } else {
                 if (selected_count <= 0) saturation_avg = 0.1;
                 else saturation_avg = selected_hsvs[0].s;
@@ -158,23 +153,79 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args) {
         }
     }
 
+    size_t from = 1;
+
     for (int i = 0; i < target_sel_count; i++) {
+        palette[from++] = most_used_colors[i];
         uint8_t r = (most_used_colors[i] >> 16) & 0xFF;
         uint8_t g = (most_used_colors[i] >> 8)  & 0xFF;
         uint8_t b =  most_used_colors[i]        & 0xFF;
         printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
     }
     printf("\n");
+
+    from = 9;
     for (int i = 0; i < target_sel_count; i++) {
         hsv_t hsv = rgb_to_hsv(most_used_colors[i]);
         hsv.v = std::clamp(hsv.v + 0.1f, 0.1f, 0.9f);
         rgb_t c = hsv_to_rgb(hsv);
+        palette[from++] = c;
         uint8_t r = (c >> 16) & 0xFF;
         uint8_t g = (c >> 8)  & 0xFF;
         uint8_t b =  c        & 0xFF;
         printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
     }
-    printf("\n 1  2  3  4  5 \n");
+    printf("\n");
+
+    for (int i = 0; i < 3; i++) {
+        hsv_t hsv = rgb_to_hsv(most_used_colors[0]);
+        hsv.v = std::min(0.1f + i * 0.07f, 0.4f);
+        rgb_t c = hsv_to_rgb(hsv);
+        uint8_t r = (c >> 16) & 0xFF;
+        uint8_t g = (c >> 8)  & 0xFF;
+        uint8_t b =  c        & 0xFF;
+        printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
+
+        switch (i) {
+            case 0:
+                palette[0] = c;
+                break;
+            case 1:
+                palette[8] = c;
+                break;
+            case 2:
+                palette[16] = c;
+                break;
+            default:
+                break;
+        }
+    }
+    for (int i = 0; i < 3; i++) {
+        hsv_t hsv = rgb_to_hsv(most_used_colors[0]);
+        hsv.s = 0.2f;
+        hsv.v = std::max(0.8f - i * 0.07f, 0.2f);
+        rgb_t c = hsv_to_rgb(hsv);
+        uint8_t r = (c >> 16) & 0xFF;
+        uint8_t g = (c >> 8)  & 0xFF;
+        uint8_t b =  c        & 0xFF;
+        printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
+
+        switch (i) {
+            case 0:
+                palette[15] = c;
+                break;
+            case 1:
+                palette[7] = c;
+                break;
+            case 2:
+                palette[17] = c;
+                break;
+            default:
+                break;
+        }
+    }
+    printf("\n");
+
     for (int i = 0; i < target_sel_count; i++) {
         printf("%d) #%06x: %u\n", i+1, most_used_colors[i], most_used_freqs[i]);
     }
@@ -210,8 +261,23 @@ int main(int argc, char **argv) {
     }
     fclose(input);
 
-    process_image(image, w, h, 4, &a);
+    rgb_t *palette = (rgb_t *)calloc(sizeof(rgb_t), 18);
+    process_image(image, w, h, 4, &a, palette);
 
+    FILE *output = fopen(a.outfile, "w");
+    if (!output) {
+        fprintf(stderr, "ERROR: Failed to open the file: %s\n", strerror(errno));
+        return 1;
+    }
+    fprintf(output, "return {\n");
+    for(int i=0; i<18; i++) {
+        fprintf(output, "\tcolor%.2d = 0x%x,\n", i, palette[i]);
+    }
+    fprintf(output, "\taccent1 = 0x%x,\n", palette[1]);
+    fprintf(output, "\taccent2 = 0x%x\n", palette[2]);
+    fprintf(output, "}\n");
+
+    fclose(output);
     stbi_image_free(image);
     deinit_args(&a);
     return 0;
