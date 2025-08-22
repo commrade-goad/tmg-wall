@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <time.h>
 #include <algorithm>
 #include <unordered_map>
 #include <vector>
@@ -30,7 +31,7 @@ bool is_hue_different_enough(hsv_t new_hsv, hsv_t* selected_hsvs, int selected_c
     return true;
 }
 
-void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palette) {
+void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palette, hsv_t *accent) {
     static const int target_sel_count = 6;
     rgb_t most_used_colors[target_sel_count] = {};
     // uint32_t most_used_freqs[target_sel_count] = {};
@@ -83,6 +84,7 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
 
     hsv_t selected_hsvs[target_sel_count] = {};
     int selected_count = 0;
+    bool found_accent = false;
 
     for (const auto& pair : color_vec) {
         if (selected_count >= target_sel_count) break;
@@ -90,12 +92,24 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         rgb_t color = pair.first;
         ColorData data = pair.second;
 
-        bool requirement =
-            (data.hsv.v >= value_avg && data.hsv.v <= 0.86) &&
-            (data.hsv.s >= saturation_avg && data.hsv.s <= 0.70);
-        if (args->colorful_mode) requirement = (data.hsv.v >= (value_avg / 1.2f) && data.hsv.s >= (saturation_avg / 1.7f));
+        static const float max_lightness  = 0.91;
+        static const float min_lightness  = 0.54;
+        static const float min_saturation = 0.35;
+        static const float max_saturation = 0.87;
 
-        if ((selected_count == 0 || is_hue_different_enough(data.hsv, selected_hsvs, selected_count)) && requirement)
+        if ((data.hsv.v > min_lightness && data.hsv.v < max_lightness &&
+                data.hsv.s > min_saturation && data.hsv.s < max_saturation) && !found_accent) {
+            *accent = data.hsv;
+            printf("from here\n");
+            found_accent = true;
+        }
+
+        bool requirement =
+            (data.hsv.v >= std::max(value_avg, 0.3f) && data.hsv.v <= 0.90) &&
+            (data.hsv.s >= std::max(saturation_avg, 0.2f) && data.hsv.s <= 0.78);
+        // if (args->colorful_mode) requirement = (data.hsv.v >= (value_avg / 1.2f) && data.hsv.s >= (saturation_avg / 1.7f));
+
+        if (is_hue_different_enough(data.hsv, selected_hsvs, selected_count) && requirement)
         {
             most_used_colors[selected_count] = color;
             // most_used_freqs[selected_count] = data.frequency;
@@ -130,7 +144,7 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
                 else saturation_avg = selected_hsvs[0].s;
 
                 hue = selected_hsvs[0].h + i * 60;
-                safe_s = saturation_avg;
+                safe_s = std::max(saturation_avg, 0.1f);
                 safe_v = std::max(value_avg, min_value);
 
                 if (value_avg >= 1.0 - min_value) mult = -1;
@@ -145,8 +159,17 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
                 .v = safe_v,
             };
 
-            if (!is_hue_different_enough(selected_hsvs[i], selected_hsvs, selected_count))
-                continue;
+            int counter = 0;
+            int max_try = 10;
+            while (!is_hue_different_enough(selected_hsvs[i], selected_hsvs, selected_count) && !monochrome_mode) {
+                hue = fmodf(selected_hsvs[std::max(counter - 1, 0)].h + (360.0f / target_sel_count) * counter, 360.0f);
+                selected_hsvs[i] = hsv_t {
+                    .h = hue,
+                    .s = safe_s,
+                    .v = safe_v,
+                };
+                if (max_try <= counter++) break;
+            }
 
             most_used_colors[i] = hsv_to_rgb(selected_hsvs[i]);
             // most_used_freqs[i]  = 0;
@@ -163,32 +186,15 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         hsv.v = std::clamp(hsv.v + 0.1f, 0.1f, 0.9f);
         rgb_t c = hsv_to_rgb(hsv);
 
-        if (palette[bright] <= 0) palette[bright] = most_used_colors[i];
-        else printf("get double for this color : %.6x\n", most_used_colors[i]);
-        if (palette[dark] <= 0) palette[dark] = c;
-        else printf("get double for this color : %.6x\n", most_used_colors[i]);
-
-        uint8_t r = (most_used_colors[i] >> 16) & 0xFF;
-        uint8_t g = (most_used_colors[i] >> 8)  & 0xFF;
-        uint8_t b =  most_used_colors[i]        & 0xFF;
-        printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
-
-        r = (c >> 16) & 0xFF;
-        g = (c >> 8)  & 0xFF;
-        b =  c        & 0xFF;
-        printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
+        if (palette[dark] <= 0) palette[dark] = most_used_colors[i];
+        if (palette[bright] <= 0) palette[bright] = c;
     }
-    printf("\n");
 
     for (int i = 0; i < 3; i++) {
         hsv_t hsv = rgb_to_hsv(most_used_colors[0]);
         hsv.s = 0.1f;
-        hsv.v = std::min(0.1f + i * 0.07f, 0.4f);
+        hsv.v = std::min(0.1f + i * 0.08f, 0.4f);
         rgb_t c = hsv_to_rgb(hsv);
-        uint8_t r = (c >> 16) & 0xFF;
-        uint8_t g = (c >> 8)  & 0xFF;
-        uint8_t b =  c        & 0xFF;
-        printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
 
         switch (i) {
             case 0:
@@ -208,12 +214,8 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         hsv_t hsv = rgb_to_hsv(most_used_colors[0]);
         hsv.s = 0.1f;
         if (monochrome_mode) hsv.s = 0.0f;
-        hsv.v = std::max(0.8f - i * 0.07f, 0.2f);
+        hsv.v = std::max(0.8f - i * 0.08f, 0.2f);
         rgb_t c = hsv_to_rgb(hsv);
-        uint8_t r = (c >> 16) & 0xFF;
-        uint8_t g = (c >> 8)  & 0xFF;
-        uint8_t b =  c        & 0xFF;
-        printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
 
         switch (i) {
             case 0:
@@ -229,7 +231,64 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
                 break;
         }
     }
+
+    // for (int i = 0; i < 16; i++) {
+    //     if (palette[i] > 0x0) continue;
+    //     color_e color = mapping_to_color_enum(i);
+    //     uint8_t bright, dark;
+    //     float base = get_base_hue(color);
+    //     color_enum_to_mapping(color, &bright, &dark);
+    //     palette[dark] = hsv_to_rgb(hsv_t { base, saturation_avg, value_avg });
+    //     palette[bright] = hsv_to_rgb(hsv_t { base, saturation_avg, std::clamp(value_avg + 0.1f, 0.1f, 0.9f) });
+    // }
+
+    // Last resort generating
+    static float golden_ratio_conj = 0.6180339887f;
+    srand(time(NULL));
+    int jitter_seed = rand();
+
+    for (int i = 0; i < 16; i++) {
+        if (palette[i] > 0x0) continue;
+
+        color_e color = mapping_to_color_enum(i);
+        uint8_t bright, dark;
+        float base = get_base_hue(color);
+        color_enum_to_mapping(color, &bright, &dark);
+
+        float offset = fmodf((i + jitter_seed) * golden_ratio_conj, 1.0f);
+        float hue_jitter = offset * 30.0f - 15.0f;
+
+        float h1 = fmodf(base + hue_jitter, 360.0f);
+        float h2 = fmodf(base + hue_jitter + 10.0f, 360.0f);
+
+        palette[dark] = hsv_to_rgb(hsv_t { h1, saturation_avg, value_avg });
+        palette[bright] = hsv_to_rgb(hsv_t { h2, saturation_avg, std::clamp(value_avg + 0.1f, 0.1f, 0.9f) });
+    }
+
+    hsv_t seven = rgb_to_hsv(palette[7]);
+    if (!found_accent) *accent = hsv_t {seven.h, seven.s + 0.1f, seven.v};
+
+    int printed = 0;
+    for (int i = 0; i < 18; i++) {
+        uint8_t r = (palette[i] >> 16) & 0xFF;
+        uint8_t g = (palette[i] >> 8)  & 0xFF;
+        uint8_t b =  palette[i]        & 0xFF;
+        printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
+        printed++;
+        if (printed >= 8) {
+            printed = 0;
+            printf("\n");
+        }
+    }
+    rgb_t accent_rgb = hsv_to_rgb(*accent);
+    uint8_t r = (accent_rgb >> 16) & 0xFF;
+    uint8_t g = (accent_rgb >> 8)  & 0xFF;
+    uint8_t b =  accent_rgb        & 0xFF;
+    printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
     printf("\n");
+    // for (int i = 0; i < 18; i++) {
+    //     printf("%d. %.6x\n",i , palette[i]);
+    // }
 }
 
 int main(int argc, char **argv) {
@@ -262,8 +321,9 @@ int main(int argc, char **argv) {
     }
     fclose(input);
 
+    hsv_t accent = {};
     rgb_t *palette = (rgb_t *)calloc(18, sizeof(rgb_t));
-    process_image(image, w, h, 4, &a, palette);
+    process_image(image, w, h, 4, &a, palette, &accent);
 
     FILE *output = fopen(a.outfile, "w");
     if (!output) {
@@ -274,7 +334,7 @@ int main(int argc, char **argv) {
     for(int i=0; i<18; i++) {
         fprintf(output, "\tcolor%.2d = 0x%x,\n", i, palette[i]);
     }
-    fprintf(output, "\taccent1 = 0x%x,\n", palette[15]);
+    fprintf(output, "\taccent1 = 0x%x,\n", hsv_to_rgb(accent));
     fprintf(output, "\taccent2 = 0x%x\n", palette[7]);
     fprintf(output, "}\n");
 

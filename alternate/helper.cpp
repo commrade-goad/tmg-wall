@@ -127,3 +127,55 @@ void color_enum_to_mapping(color_e color, uint8_t *a, uint8_t *b) {
             return;
     }
 }
+
+color_e mapping_to_color_enum(uint8_t a) {
+    switch (a) {
+        case 12:
+        case 4:
+            return RED;
+
+        case 10:
+        case 2:
+            return GREEN;
+
+        case 9:
+        case 1:
+            return BLUE;
+
+        case 11:
+        case 3:
+            return CYAN;
+
+        case 13:
+        case 5:
+            return MAGENTA;
+
+        case 14:
+        case 6:
+            return ORANGE;
+
+        default:
+            return SHADE;
+    }
+}
+
+float get_base_hue(color_e color) {
+    switch (color) {
+        case RED:
+            return 0.0f;
+        case ORANGE:
+            return 0.125f;
+        case GREEN:
+            return 0.3125f;
+        case CYAN:
+            return 0.5f;
+        case BLUE:
+            return 0.6667f;
+        case MAGENTA:
+            return 0.8333f;
+        case SHADE:
+            return 0.0f;
+        default:
+            return 0.0f;
+    }
+}
