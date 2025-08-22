@@ -79,3 +79,51 @@ rgb_t hsv_to_rgb(hsv_t hsv) {
 
     return (R << 16) | (G << 8) | B;
 }
+
+color_e tell_color(hsv_t hsv) {
+    float h = hsv.h;
+    if (h >= 15.0f && h < 75.0f) {
+        return ORANGE;
+    } else if (h >= 75.0f && h < 150.0f) {
+        return GREEN;
+    } else if (h >= 150.0f && h < 210.0f) {
+        return CYAN;
+    } else if (h >= 210.0f && h < 270.0f) {
+        return BLUE;
+    } else if (h >= 270.0f && h < 330.0f) {
+        return MAGENTA;
+    } else {
+        return RED;
+    }
+}
+
+void color_enum_to_mapping(color_e color, uint8_t *a, uint8_t *b) {
+    switch (color) {
+        case RED:
+            *a = 12;
+            *b = 4;
+            return;
+        case GREEN:
+            *a = 10;
+            *b = 2;
+            return;
+        case BLUE:
+            *a = 9;
+            *b = 1;
+            return;
+        case CYAN:
+            *a = 11;
+            *b = 3;
+            return;
+        case MAGENTA:
+            *a = 13;
+            *b = 5;
+            return;
+        case ORANGE:
+            *a = 14;
+            *b = 6;
+            return;
+        default:
+            return;
+    }
+}

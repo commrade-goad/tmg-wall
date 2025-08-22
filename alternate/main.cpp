@@ -12,10 +12,6 @@
 #include "magician.h"
 #include "stb_image.h"
 
-#include <unordered_map>
-#include <vector>
-#include <algorithm>
-
 struct ColorData {
     hsv_t hsv;
     uint32_t frequency;
@@ -36,8 +32,8 @@ bool is_hue_different_enough(hsv_t new_hsv, hsv_t* selected_hsvs, int selected_c
 
 void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palette) {
     static const int target_sel_count = 6;
-    rgb_t most_used_colors[target_sel_count] = {0};
-    uint32_t most_used_freqs[target_sel_count] = {0};
+    rgb_t most_used_colors[target_sel_count] = {};
+    // uint32_t most_used_freqs[target_sel_count] = {};
 
     float value_avg      = 0.0f;
     float saturation_avg = 0.0f;
@@ -85,7 +81,7 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         saturation_avg = 0.0f;
     }
 
-    hsv_t selected_hsvs[target_sel_count] = {0};
+    hsv_t selected_hsvs[target_sel_count] = {};
     int selected_count = 0;
 
     for (const auto& pair : color_vec) {
@@ -96,13 +92,13 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
 
         bool requirement =
             (data.hsv.v >= value_avg && data.hsv.v <= 0.86) &&
-            (data.hsv.s >= saturation_avg && data.hsv.s <= 0.78);
+            (data.hsv.s >= saturation_avg && data.hsv.s <= 0.70);
         if (args->colorful_mode) requirement = (data.hsv.v >= (value_avg / 1.2f) && data.hsv.s >= (saturation_avg / 1.7f));
 
         if ((selected_count == 0 || is_hue_different_enough(data.hsv, selected_hsvs, selected_count)) && requirement)
         {
             most_used_colors[selected_count] = color;
-            most_used_freqs[selected_count] = data.frequency;
+            // most_used_freqs[selected_count] = data.frequency;
             selected_hsvs[selected_count] = data.hsv;
             selected_count++;
         }
@@ -149,32 +145,37 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
                 .v = safe_v,
             };
 
+            if (!is_hue_different_enough(selected_hsvs[i], selected_hsvs, selected_count))
+                continue;
+
             most_used_colors[i] = hsv_to_rgb(selected_hsvs[i]);
-            most_used_freqs[i]  = 0;
+            // most_used_freqs[i]  = 0;
             selected_count++;
         }
     }
 
-    size_t from = 1;
-
     for (int i = 0; i < target_sel_count; i++) {
-        palette[from++] = most_used_colors[i];
+        color_e color = tell_color(rgb_to_hsv(most_used_colors[i]));
+        uint8_t bright, dark;
+        color_enum_to_mapping(color, &bright, &dark);
+
+        hsv_t hsv = rgb_to_hsv(most_used_colors[i]);
+        hsv.v = std::clamp(hsv.v + 0.1f, 0.1f, 0.9f);
+        rgb_t c = hsv_to_rgb(hsv);
+
+        if (palette[bright] <= 0) palette[bright] = most_used_colors[i];
+        else printf("get double for this color : %.6x\n", most_used_colors[i]);
+        if (palette[dark] <= 0) palette[dark] = c;
+        else printf("get double for this color : %.6x\n", most_used_colors[i]);
+
         uint8_t r = (most_used_colors[i] >> 16) & 0xFF;
         uint8_t g = (most_used_colors[i] >> 8)  & 0xFF;
         uint8_t b =  most_used_colors[i]        & 0xFF;
         printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
-    }
-    printf("\n");
 
-    from = 9;
-    for (int i = 0; i < target_sel_count; i++) {
-        hsv_t hsv = rgb_to_hsv(most_used_colors[i]);
-        hsv.v = std::clamp(hsv.v + 0.1f, 0.1f, 0.9f);
-        rgb_t c = hsv_to_rgb(hsv);
-        palette[from++] = c;
-        uint8_t r = (c >> 16) & 0xFF;
-        uint8_t g = (c >> 8)  & 0xFF;
-        uint8_t b =  c        & 0xFF;
+        r = (c >> 16) & 0xFF;
+        g = (c >> 8)  & 0xFF;
+        b =  c        & 0xFF;
         printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
     }
     printf("\n");
