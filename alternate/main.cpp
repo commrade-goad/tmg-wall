@@ -21,12 +21,8 @@ struct ColorData {
 bool is_hue_different_enough(hsv_t new_hsv, hsv_t* selected_hsvs, int selected_count) {
     for (int i = 0; i < selected_count; i++) {
         float hue_diff = fabsf(new_hsv.h - selected_hsvs[i].h);
-        if (hue_diff > 180.0f) {
-            hue_diff = 360.0f - hue_diff;
-        }
-        if (hue_diff < 45.0f) {
-            return false;
-        }
+        if (hue_diff > 180.0f) { hue_diff = 360.0f - hue_diff; }
+        if (hue_diff < 40.0f) { return false; }
     }
     return true;
 }
@@ -36,6 +32,8 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
     rgb_t most_used_colors[target_sel_count] = {};
     // uint32_t most_used_freqs[target_sel_count] = {};
 
+    // float darkest_value  = 1.0f;
+    // float bright_value   = 0.0f;
     float value_avg      = 0.0f;
     float saturation_avg = 0.0f;
 
@@ -55,8 +53,12 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
                 it->second.frequency++;
             } else {
                 hsv_t hsv = rgb_to_hsv(pixel);
+
                 value_avg += hsv.v;
                 saturation_avg += hsv.s;
+                // if (darkest_value > hsv.v) darkest_value = hsv.v;
+                // if (bright_value < hsv.v) bright_value = hsv.v;
+
                 color_map[pixel] = {hsv, 1};
             }
         }
@@ -93,14 +95,13 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         ColorData data = pair.second;
 
         static const float max_lightness  = 0.91;
-        static const float min_lightness  = 0.54;
-        static const float min_saturation = 0.35;
+        static const float min_lightness  = 0.52;
+        static const float min_saturation = 0.20;
         static const float max_saturation = 0.87;
 
         if ((data.hsv.v > min_lightness && data.hsv.v < max_lightness &&
                 data.hsv.s > min_saturation && data.hsv.s < max_saturation) && !found_accent) {
             *accent = data.hsv;
-            printf("from here\n");
             found_accent = true;
         }
 
@@ -154,7 +155,7 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
             }
 
             selected_hsvs[i] = hsv_t {
-                .h = hue,
+                .h = fmodf(hue, 360 + 1),
                 .s = safe_s,
                 .v = safe_v,
             };
@@ -164,11 +165,28 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
             while (!is_hue_different_enough(selected_hsvs[i], selected_hsvs, selected_count) && !monochrome_mode) {
                 hue = fmodf(selected_hsvs[std::max(counter - 1, 0)].h + (360.0f / target_sel_count) * counter, 360.0f);
                 selected_hsvs[i] = hsv_t {
-                    .h = hue,
+                    .h = fmodf(hue, 360 + 1),
                     .s = safe_s,
                     .v = safe_v,
                 };
                 if (max_try <= counter++) break;
+            }
+
+            if (max_try <= counter && !monochrome_mode) {
+                static const float golden_ratio_conj = 0.6180339887f;
+                srand(time(NULL));
+                int jitter_seed = rand();
+                color_e color = mapping_to_color_enum(i);
+                float base = get_base_hue(color);
+
+                float offset = fmodf((i + jitter_seed) * golden_ratio_conj, 1.0f);
+                float hue_jitter = offset * 30.0f - 15.0f;
+                float h1 = fmodf(fmodf(base + hue_jitter, 360.0f) + 360.0f, 360.0f);
+                selected_hsvs[i] = hsv_t {
+                    .h = h1,
+                    .s = saturation_avg,
+                    .v = value_avg,
+                };
             }
 
             most_used_colors[i] = hsv_to_rgb(selected_hsvs[i]);
@@ -191,9 +209,10 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
     }
 
     for (int i = 0; i < 3; i++) {
-        hsv_t hsv = rgb_to_hsv(most_used_colors[0]);
+        hsv_t hsv = found_accent ? *accent : rgb_to_hsv(most_used_colors[0]);
         hsv.s = 0.1f;
-        hsv.v = std::min(0.1f + i * 0.08f, 0.4f);
+        hsv.v = std::min(0.1f + i * 0.1f, 0.3f);
+        // hsv.v = std::min(darkest_value + i * 0.08f, 0.38f);
         rgb_t c = hsv_to_rgb(hsv);
 
         switch (i) {
@@ -211,10 +230,11 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         }
     }
     for (int i = 0; i < 3; i++) {
-        hsv_t hsv = rgb_to_hsv(most_used_colors[0]);
+        hsv_t hsv = found_accent ? *accent : rgb_to_hsv(most_used_colors[0]);
         hsv.s = 0.1f;
         if (monochrome_mode) hsv.s = 0.0f;
-        hsv.v = std::max(0.8f - i * 0.08f, 0.2f);
+        hsv.v = std::max(0.82f - i * 0.1f, 0.5f);
+        // hsv.v = std::max(bright_value - i * 0.08f, 0.72f);
         rgb_t c = hsv_to_rgb(hsv);
 
         switch (i) {
@@ -232,41 +252,9 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         }
     }
 
-    // for (int i = 0; i < 16; i++) {
-    //     if (palette[i] > 0x0) continue;
-    //     color_e color = mapping_to_color_enum(i);
-    //     uint8_t bright, dark;
-    //     float base = get_base_hue(color);
-    //     color_enum_to_mapping(color, &bright, &dark);
-    //     palette[dark] = hsv_to_rgb(hsv_t { base, saturation_avg, value_avg });
-    //     palette[bright] = hsv_to_rgb(hsv_t { base, saturation_avg, std::clamp(value_avg + 0.1f, 0.1f, 0.9f) });
-    // }
-
-    // Last resort generating
-    static float golden_ratio_conj = 0.6180339887f;
-    srand(time(NULL));
-    int jitter_seed = rand();
-
-    for (int i = 0; i < 16; i++) {
-        if (palette[i] > 0x0) continue;
-
-        color_e color = mapping_to_color_enum(i);
-        uint8_t bright, dark;
-        float base = get_base_hue(color);
-        color_enum_to_mapping(color, &bright, &dark);
-
-        float offset = fmodf((i + jitter_seed) * golden_ratio_conj, 1.0f);
-        float hue_jitter = offset * 30.0f - 15.0f;
-
-        float h1 = fmodf(base + hue_jitter, 360.0f);
-        float h2 = fmodf(base + hue_jitter + 10.0f, 360.0f);
-
-        palette[dark] = hsv_to_rgb(hsv_t { h1, saturation_avg, value_avg });
-        palette[bright] = hsv_to_rgb(hsv_t { h2, saturation_avg, std::clamp(value_avg + 0.1f, 0.1f, 0.9f) });
-    }
-
     hsv_t seven = rgb_to_hsv(palette[7]);
-    if (!found_accent) *accent = hsv_t {seven.h, seven.s + 0.1f, seven.v};
+    if (!found_accent && !monochrome_mode) *accent = hsv_t {seven.h, seven.s + 0.1f, seven.v};
+    else if (!found_accent) *accent = hsv_t {seven.h, seven.s, seven.v};
 
     int printed = 0;
     for (int i = 0; i < 18; i++) {

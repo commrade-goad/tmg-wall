@@ -164,17 +164,15 @@ float get_base_hue(color_e color) {
         case RED:
             return 0.0f;
         case ORANGE:
-            return 0.125f;
+            return 52.5f;
         case GREEN:
-            return 0.3125f;
+            return 120.0f;
         case CYAN:
-            return 0.5f;
+            return 180.0f;
         case BLUE:
-            return 0.6667f;
+            return 240.0f;
         case MAGENTA:
-            return 0.8333f;
-        case SHADE:
-            return 0.0f;
+            return 300.0f;
         default:
             return 0.0f;
     }
