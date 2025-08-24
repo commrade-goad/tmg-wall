@@ -172,23 +172,6 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
                 if (max_try <= counter++) break;
             }
 
-            if (max_try <= counter && !monochrome_mode) {
-                static const float golden_ratio_conj = 0.6180339887f;
-                srand(time(NULL));
-                int jitter_seed = rand();
-                color_e color = mapping_to_color_enum(i);
-                float base = get_base_hue(color);
-
-                float offset = fmodf((i + jitter_seed) * golden_ratio_conj, 1.0f);
-                float hue_jitter = offset * 30.0f - 15.0f;
-                float h1 = fmodf(fmodf(base + hue_jitter, 360.0f) + 360.0f, 360.0f);
-                selected_hsvs[i] = hsv_t {
-                    .h = h1,
-                    .s = saturation_avg,
-                    .v = value_avg,
-                };
-            }
-
             most_used_colors[i] = hsv_to_rgb(selected_hsvs[i]);
             // most_used_freqs[i]  = 0;
             selected_count++;
@@ -250,6 +233,28 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
             default:
                 break;
         }
+    }
+
+    static float golden_ratio_conj = 0.6180339887f;
+    srand(time(NULL));
+    int jitter_seed = rand();
+
+    for (int i = 0; i < 16; i++) {
+        if (palette[i] > 0x0) continue;
+
+        color_e color = mapping_to_color_enum(i);
+        uint8_t bright, dark;
+        float base = get_base_hue(color);
+        color_enum_to_mapping(color, &bright, &dark);
+
+        float offset = fmodf((i + jitter_seed) * golden_ratio_conj, 1.0f);
+        float hue_jitter = offset * 30.0f - 15.0f;
+
+        float h1 = fmodf(base + hue_jitter, 360.0f);
+        float h2 = fmodf(base + hue_jitter + 10.0f, 360.0f);
+
+        palette[dark] = hsv_to_rgb(hsv_t { h1, saturation_avg, value_avg });
+        palette[bright] = hsv_to_rgb(hsv_t { h2, saturation_avg, std::clamp(value_avg + 0.1f, 0.1f, 0.9f) });
     }
 
     hsv_t seven = rgb_to_hsv(palette[7]);
