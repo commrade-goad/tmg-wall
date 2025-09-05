@@ -88,6 +88,12 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
     int selected_count = 0;
     bool found_accent = false;
 
+    hsv_t most_used_bg = {0};
+    bool most_used_bg_found = false;
+
+    hsv_t most_used_fg = {0};
+    bool most_used_fg_found = false;
+
     for (const auto& pair : color_vec) {
         if (selected_count >= target_sel_count) break;
 
@@ -103,6 +109,16 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
                 data.hsv.s > min_saturation && data.hsv.s < max_saturation) && !found_accent) {
             *accent = data.hsv;
             found_accent = true;
+        }
+
+        if (data.hsv.v <= 0.2 && data.hsv.s < 0.2 && !most_used_bg_found) {
+            most_used_bg = data.hsv;
+            most_used_bg_found = true;
+        }
+
+        if (data.hsv.v >= 0.8 && data.hsv.s < 0.14 && !most_used_fg_found) {
+            most_used_fg = data.hsv;
+            most_used_fg_found = true;
         }
 
         bool requirement =
@@ -194,6 +210,8 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
     for (int i = 0; i < 3; i++) {
         hsv_t hsv = found_accent ? *accent : rgb_to_hsv(most_used_colors[0]);
         hsv.s = 0.1f;
+        if (most_used_bg_found) { hsv = most_used_bg; }
+
         hsv.v = std::min(0.1f + i * 0.1f, 0.3f);
         // hsv.v = std::min(darkest_value + i * 0.08f, 0.38f);
         rgb_t c = hsv_to_rgb(hsv);
@@ -214,8 +232,9 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
     }
     for (int i = 0; i < 3; i++) {
         hsv_t hsv = found_accent ? *accent : rgb_to_hsv(most_used_colors[0]);
-        hsv.s = 0.1f;
-        if (monochrome_mode) hsv.s = 0.0f;
+        hsv.s = monochrome_mode ? 0.0f : 0.1f;
+
+        if (most_used_fg_found) { hsv = most_used_fg; }
         hsv.v = std::max(0.82f - i * 0.1f, 0.5f);
         // hsv.v = std::max(bright_value - i * 0.08f, 0.72f);
         rgb_t c = hsv_to_rgb(hsv);
