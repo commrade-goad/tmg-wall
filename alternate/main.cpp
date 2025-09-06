@@ -1,4 +1,3 @@
-#define STB_IMAGE_IMPLEMENTATION
 #define MAGICIAN_IMPLEMENTATION
 
 #include <stdio.h>
@@ -6,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include <algorithm>
+#include <math.h>
 #include <unordered_map>
 #include <vector>
 #include "helper.h"
