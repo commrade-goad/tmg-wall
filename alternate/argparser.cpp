@@ -14,7 +14,7 @@ static inline void print_help(const char *name) {
 }
 
 Args init_args(int argc, char **argv) {
-    Args a = {0};
+    Args a = {};
     bool is_flag = false;
     int i = 1;
     while (i < argc) {

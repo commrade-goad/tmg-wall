@@ -88,10 +88,10 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
     int selected_count = 0;
     bool found_accent = false;
 
-    hsv_t most_used_bg = {0};
+    hsv_t most_used_bg = {};
     bool most_used_bg_found = false;
 
-    hsv_t most_used_fg = {0};
+    hsv_t most_used_fg = {};
     bool most_used_fg_found = false;
 
     for (const auto& pair : color_vec) {
@@ -202,8 +202,8 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         // saturate more for light mode [[ new ]]
         hsv_t hsv_c2 = rgb_to_hsv(most_used_colors[i]);
         if (args->light_mode) {
-            hsv_c2.s = std::min(hsv_c2.s + 0.1d, 0.9);
-            hsv_c2.v = std::min(hsv_c2.v - 0.15d, 0.6);
+            hsv_c2.s = std::min(hsv_c2.s + 0.1, 0.9);
+            hsv_c2.v = std::min(hsv_c2.v - 0.15, 0.6);
         }
         rgb_t c2 = hsv_to_rgb(hsv_c2);
 
@@ -223,7 +223,7 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
 
         if (args->light_mode) {
             hsv.v = std::max(0.9f - i * 0.1f, 0.7f);
-            hsv.s = std::max(0.08, (double)hsv.s - 0.1);
+            if (hsv.s > 0.1) { hsv.s = std::max(0.1, (double)hsv.s - 0.1); }
         }
         else hsv.v = std::min(0.1f + i * 0.1f, 0.3f);
         // hsv.v = std::min(darkest_value + i * 0.08f, 0.38f);
@@ -252,7 +252,7 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         if (most_used_fg_found) { hsv = most_used_fg; }
         if (args->light_mode) {
             hsv.v = std::min(0.1f + i * 0.1f, 0.2f);
-            hsv.s = std::max(hsv.s + 0.05d, 0.4);
+            if (hsv.s > 0.1) { hsv.s = std::max(hsv.s + 0.05, 0.4); }
         }
         else hsv.v = std::max(0.82f - i * 0.1f, 0.5f);
         // hsv.v = std::max(bright_value - i * 0.08f, 0.72f);
