@@ -199,20 +199,33 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         uint8_t bright, dark;
         color_enum_to_mapping(color, &bright, &dark);
 
-        hsv_t hsv = rgb_to_hsv(most_used_colors[i]);
+        // saturate more for light mode [[ new ]]
+        hsv_t hsv_c2 = rgb_to_hsv(most_used_colors[i]);
+        if (args->light_mode) {
+            hsv_c2.s = std::min(hsv_c2.s + 0.1d, 0.9);
+            hsv_c2.v = std::min(hsv_c2.v - 0.15d, 0.6);
+        }
+        rgb_t c2 = hsv_to_rgb(hsv_c2);
+
+        hsv_t hsv = rgb_to_hsv(c2);
         hsv.v = std::clamp(hsv.v + 0.1f, 0.1f, 0.9f);
         rgb_t c = hsv_to_rgb(hsv);
 
-        if (palette[dark] <= 0) palette[dark] = most_used_colors[i];
+        if (palette[dark] <= 0) palette[dark] = c2;
         if (palette[bright] <= 0) palette[bright] = c;
     }
 
+    // gen bg
     for (int i = 0; i < 3; i++) {
         hsv_t hsv = found_accent ? *accent : rgb_to_hsv(most_used_colors[0]);
         hsv.s = 0.1f;
         if (most_used_bg_found) { hsv = most_used_bg; }
 
-        hsv.v = std::min(0.1f + i * 0.1f, 0.3f);
+        if (args->light_mode) {
+            hsv.v = std::max(0.9f - i * 0.1f, 0.7f);
+            hsv.s = std::max(0.08, (double)hsv.s - 0.1);
+        }
+        else hsv.v = std::min(0.1f + i * 0.1f, 0.3f);
         // hsv.v = std::min(darkest_value + i * 0.08f, 0.38f);
         rgb_t c = hsv_to_rgb(hsv);
 
@@ -230,12 +243,18 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
                 break;
         }
     }
+
+    // gen fg
     for (int i = 0; i < 3; i++) {
         hsv_t hsv = found_accent ? *accent : rgb_to_hsv(most_used_colors[0]);
         hsv.s = monochrome_mode ? 0.0f : 0.1f;
 
         if (most_used_fg_found) { hsv = most_used_fg; }
-        hsv.v = std::max(0.82f - i * 0.1f, 0.5f);
+        if (args->light_mode) {
+            hsv.v = std::min(0.1f + i * 0.1f, 0.2f);
+            hsv.s = std::max(hsv.s + 0.05d, 0.4);
+        }
+        else hsv.v = std::max(0.82f - i * 0.1f, 0.5f);
         // hsv.v = std::max(bright_value - i * 0.08f, 0.72f);
         rgb_t c = hsv_to_rgb(hsv);
 

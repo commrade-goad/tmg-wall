@@ -8,6 +8,7 @@ static inline void print_help(const char *name) {
     printf("%s [infile] [outfile] <flags>\n", name);
     printf("<flags> :\n");
     printf("   -c : use more popping color.\n");
+    printf("   -l : generate light mode.\n");
     printf("   -h : print this help.\n");
     printf("   -v : print version.\n");
 }
@@ -31,6 +32,9 @@ Args init_args(int argc, char **argv) {
                     break;
                 case 'c':
                     a.colorful_mode = true;
+                    break;
+                case 'l':
+                    a.light_mode = true;
                     break;
                 default:
                     fprintf(stderr, "ERROR: Unknown flags `%s`!\n", current);

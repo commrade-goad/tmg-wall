@@ -8,6 +8,7 @@ typedef struct {
     char *outfile;
     bool exit;
     bool colorful_mode;
+    bool light_mode;
 } Args;
 
 Args init_args(int argc, char **argv);
