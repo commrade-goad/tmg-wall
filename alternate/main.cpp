@@ -208,7 +208,7 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         rgb_t c2 = hsv_to_rgb(hsv_c2);
 
         hsv_t hsv = rgb_to_hsv(c2);
-        hsv.v = std::clamp(hsv.v + 0.1f, 0.1f, 0.9f);
+        hsv.v = std::clamp(hsv.v + 0.2f, 0.1f, 0.95f);
         rgb_t c = hsv_to_rgb(hsv);
 
         if (palette[dark] <= 0) palette[dark] = c2;
@@ -292,7 +292,7 @@ void process_image(uint8_t* image, int w, int h, int n, Args *args, rgb_t *palet
         float h2 = fmodf(base + hue_jitter + 10.0f, 360.0f);
 
         palette[dark] = hsv_to_rgb(hsv_t { h1, saturation_avg, value_avg });
-        palette[bright] = hsv_to_rgb(hsv_t { h2, saturation_avg, std::clamp(value_avg + 0.1f, 0.1f, 0.9f) });
+        palette[bright] = hsv_to_rgb(hsv_t { h2, saturation_avg, std::clamp(value_avg + 0.2f, 0.1f, 0.95f) });
     }
 
     hsv_t seven = rgb_to_hsv(palette[7]);
