@@ -16,37 +16,47 @@
 int main(int argc, char **argv) {
     /* -- Opening -- */
     bool monochrome = false;
-    if (argc == 2) {
-        if (argv[1][0] == '-') {
-            switch (argv[1][1]) {
-                case 'h':
-                    printf("%s [infile] [outfile]\n", argv[0]);
-                    break;
-                case 'v':
-                    printf("%s %d.%d.%d\n", argv[0], VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-                    break;
-                default:
-                    fprintf(stderr, "ERROR: Not a valid argument!\n");
-                    break;
+    bool dark_mode = true;
+
+    char *target = NULL;
+    char *input = NULL;
+
+    bool exit_mode = false;
+    for (int i = 1; i < argc; i++) {
+        char *current = argv[i];
+        if (current[0] == '-') {
+            if (strlen(current) < 2) continue; // need minimal `-[a]` so min 2
+            switch (current[1]) {
+            case 'h':
+                printf("%s [infile] [outfile]\n", argv[0]);
+                exit_mode = true;
+                break;
+            case 'v':
+                printf("%s %d.%d.%d\n", argv[0], VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+                exit_mode = true;
+                break;
+            case 'l':
+                dark_mode = false;
+                break;
+            case 'm':
+                monochrome = true;
+                break;
+            default:
+                fprintf(stderr, "ERROR: Not a valid argument!\n");
+                break;
             }
+        } else {
+            if (!input) input = current;
+            else if (!target) target = current;
+            else continue;
         }
     }
-    if (argc < MIN_ARGS) {
+    if (!exit_mode && (!input || !target)) {
         fprintf(stderr, "ERROR: Not enought argument!\n");
         return 1;
     }
-    if (argc == MIN_ARGS + 1) {
-        if (argv[MIN_ARGS][0] == '-') {
-            switch (argv[MIN_ARGS][1]) {
-                case 'm':
-                    monochrome = true;
-                    break;
-                default:
-                    fprintf(stderr, "ERROR: Not a valid argument!\n");
-                    break;
-            }
-        }
-    }
+
+    if (exit_mode) return 0;
 
     FILE *in_file = fopen(argv[1], "rb");
     if (!in_file) {

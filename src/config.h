@@ -1,12 +1,10 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-const bool dark_mode  = true;
-
-static const float max_lightness  = 0.70;
-static const float min_lightness  = 0.50; /* 0.4 */
-static const float min_saturation = 0.20;
-static const float max_saturation = 0.88;
+static const float max_lightness  = 0.80;
+static const float min_lightness  = 0.45;
+static const float min_saturation = 0.15;
+static const float max_saturation = 0.78;
 
 static const float second_color_hue_diff = 0.083;
 
