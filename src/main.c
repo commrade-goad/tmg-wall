@@ -84,6 +84,10 @@ int main(int argc, char **argv) {
     pair_t most_used    = {0};
     pair_t second_used  = {0};
 
+    pair_t most_used_of_all_dont_care_criteria = {0};
+
+    bool found = false;
+
     uint16_t *freq = calloc(0x1000000, sizeof(uint16_t));
 
     size_t color_count = 0;
@@ -102,14 +106,24 @@ int main(int argc, char **argv) {
             uint32_t count = ++freq[pixel];
             if (count == 1) ++color_count;
 
-            if (!monochrome) {
+            if (count > most_used_of_all_dont_care_criteria.second) {
+                most_used_of_all_dont_care_criteria.first = pixel;
+                most_used_of_all_dont_care_criteria.second = count;
+            }
+
+            // if (!monochrome) {
                 if (hsv.v < min_lightness || hsv.v > max_lightness ||
                         hsv.s < min_saturation || hsv.s > max_saturation) {
                     continue;
                 }
-            }
+            // } else {
+            //     if (hsv.v < 0.2 || hsv.v > 0.8 || hsv.s < 4.0 || hsv.s >= 0.0) {
+            //         continue;
+            //     }
+            // }
 
             if (count > most_used.second) {
+                if (!found) found = true;
                 most_used.first = pixel;
                 most_used.second = count;
             }
@@ -132,6 +146,12 @@ int main(int argc, char **argv) {
     /* Don't need it anymore goodbye! */
     stbi_image_free(image);
     free(freq);
+
+    if (!found && !monochrome) {
+        printf("INFO: There is not match color for the current criteria, activating monochrome mode automatically!\n");
+        monochrome = true;
+        most_used = most_used_of_all_dont_care_criteria;
+    }
 
     /* Generate the color */
 
@@ -161,10 +181,10 @@ int main(int argc, char **argv) {
     if (monochrome) {
         /* Get base color from the most used color */
         hsv_t base_hsv = rgb_to_hsv(most_used.first);
-        float base = 0.10;
-        base_hsv.s = base + (base_hsv.s / 6.0f);
-        base_hsv.v = 0.5 + base;
-        most_used.first = hsv_to_rgb(base_hsv);
+        if (base_hsv.s >= 0.3) base_hsv.s -= base_hsv.s / 3;
+
+        bool is_black_and_white = (base_hsv.s <= 0.1) ? true : false;
+        double base_sat = !is_black_and_white ? 0.15 : 0.0;
 
         /* Bg Color */
         double invert = dark_mode ? 1.0 : -1.0;
@@ -172,7 +192,7 @@ int main(int argc, char **argv) {
 
         hsv_t bg = {
             .h = base_hsv.h,
-            .s = 0.15,  /* Low saturation for monochrome */
+            .s = base_sat,  /* Low saturation for monochrome */
             .v = offset + invert * bg_color_value
         };
 
@@ -180,29 +200,29 @@ int main(int argc, char **argv) {
 
         hsv_t bg_alt = {
             .h = base_hsv.h,
-            .s = 0.15,
+            .s = base_sat,
             .v = offset + invert * (bg_color_value + bg_color_value_alt_diff)
         };
         palette[8] = hsv_to_rgb(bg_alt);
 
         hsv_t bg_alt_2 = {
             .h = base_hsv.h,
-            .s = 0.15,
+            .s = base_sat,
             .v = offset + invert * (bg_color_value + (bg_color_value_alt_diff * 2))
         };
         palette[16] = hsv_to_rgb(bg_alt_2);
 
         /* Fg Color */
-        hsv_t fg = { base_hsv.h, 0.15, 1.0f - bg.v };
+        hsv_t fg = { base_hsv.h, base_sat, 1.0f - bg.v };
         palette[15] = hsv_to_rgb(fg);
 
         float shift_by = bg_alt.v / 16.0f;
         shift_by *= (bg_alt.v >= 0.5) ? 1 : -1;
 
-        hsv_t fg_alt = { base_hsv.h, 0.15, 0.5f + shift_by };
+        hsv_t fg_alt = { base_hsv.h, base_sat, 0.5f + shift_by };
         palette[7] = hsv_to_rgb(fg_alt);
 
-        hsv_t fg_alt_2 = { base_hsv.h, 0.15, 0.5f + (shift_by * 2) };
+        hsv_t fg_alt_2 = { base_hsv.h, base_sat, 0.5f + (shift_by * 2) };
         palette[17] = hsv_to_rgb(fg_alt_2);
 
         /* Generate remaining colors with graduated brightness levels */
@@ -220,31 +240,33 @@ int main(int argc, char **argv) {
                 /* For dark mode: distribute between 0.5 and 1.0 */
                 if (i < 8) {
                     /* Colors 1-7: Spread between 0.7 and 0.95 */
-                    brightness = 0.7 + (0.25 * (i - 1) / 6.0);
+                    brightness = 0.5 + (0.35 * (i - 1) / 6.0);
                 } else {
                     /* Colors 9-14: Spread between 0.5 and 0.65 */
-                    brightness = 0.65 - (0.15 * (i - 9) / 5.0);
+                    brightness = 0.5 + (0.35 * (i - 8) / 6.0);
                 }
             } else {
                 /* For light mode: distribute between 0.5 and 1.0 but inverted */
                 if (i < 8) {
-                    /* Colors 1-7: Spread between 0.8 and 0.6 */
-                    brightness = 0.8 - (0.2 * (i - 1) / 6.0);
+                    /* Colors 1-7: Spread between 0.7 and 0.95 */
+                    brightness = 0.7 - (0.25 * (i - 1) / 6.0);
                 } else {
-                    /* Colors 9-14: Spread between 0.9 and 0.7 */
-                    brightness = 0.7 + (0.2 * (i - 9) / 5.0);
+                    /* Colors 9-14: Spread between 0.5 and 0.65 */
+                    brightness = 0.7 - (0.25 * (i - 8) / 6.0);
                 }
             }
-
-            /* Ensure we don't duplicate colors by making step sizes uneven */
-            brightness += (i % 5) * 0.02;  /* Larger offset for more variation */
 
             /* Set brightness and saturation levels */
             brightness = clamp(brightness, 0.5, 0.95);  /* Minimum brightness of 0.5 */
 
             /* Vary saturation to increase distinction */
-            saturation = 0.1 + (i % 4) * 0.05;
-            saturation = clamp(saturation, 0.05, 0.3);
+            if (!is_black_and_white) {
+                // saturation = 0.1 + (i % 4) * 0.05;
+                // saturation = clamp(saturation, 0.05, 0.3);
+                saturation = base_hsv.s + ((i % 4) * 5e-4);
+            } else {
+                saturation = 0.0;
+            }
 
             hsv_t color_hsv = {
                 .h = base_hsv.h,
@@ -255,6 +277,7 @@ int main(int argc, char **argv) {
             palette[i] = hsv_to_rgb(color_hsv);
         }
         second_used = most_used;
+        // most_used = (pair_t){ .first = hsv_to_rgb(base_hsv), .second = 9999 };
     } else {
         hsv_t first_accent_hsv = rgb_to_hsv(most_used.first);
         if (second_used.first == 0 || second_used.second <= 0) second_used = most_used;
@@ -386,5 +409,25 @@ int main(int argc, char **argv) {
     fprintf(out_file, "}\n");
 
     fclose(out_file);
+
+    int printed = 0;
+    for (int i = 0; i < 18; i++) {
+        uint8_t r = (palette[i] >> 16) & 0xFF;
+        uint8_t g = (palette[i] >> 8)  & 0xFF;
+        uint8_t b =  palette[i]        & 0xFF;
+        printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
+        printed++;
+        if (printed >= 8) {
+            printed = 0;
+            printf("\n");
+        }
+    }
+    rgb_t accent_rgb = most_used.first;
+    uint8_t r = (accent_rgb >> 16) & 0xFF;
+    uint8_t g = (accent_rgb >> 8)  & 0xFF;
+    uint8_t b =  accent_rgb        & 0xFF;
+    printf("\033[48;2;%d;%d;%dm   \033[0m", r, g, b);
+    printf("\n");
+
     return 0;
 }
