@@ -249,15 +249,15 @@ int main(int argc, char **argv) {
                 /* For light mode: distribute between 0.5 and 1.0 but inverted */
                 if (i < 8) {
                     /* Colors 1-7: Spread between 0.7 and 0.95 */
-                    brightness = 0.7 - (0.25 * (i - 1) / 6.0);
+                    brightness = 0.35 - (0.25 * (i - 1) / 6.0);
                 } else {
                     /* Colors 9-14: Spread between 0.5 and 0.65 */
-                    brightness = 0.7 - (0.25 * (i - 8) / 6.0);
+                    brightness = 0.35 - (0.25 * (i - 8) / 6.0);
                 }
             }
 
             /* Set brightness and saturation levels */
-            brightness = clamp(brightness, 0.5, 0.95);  /* Minimum brightness of 0.5 */
+            if (dark_mode) brightness = clamp(brightness, 0.5, 0.95);  /* Minimum brightness of 0.5 */
 
             /* Vary saturation to increase distinction */
             if (!is_black_and_white) {
