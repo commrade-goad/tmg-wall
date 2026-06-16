@@ -181,13 +181,14 @@ int main(int argc, char **argv) {
     if (monochrome) {
         /* Get base color from the most used color */
         hsv_t base_hsv = rgb_to_hsv(most_used.first);
+        hsv_t original = base_hsv;
         if (base_hsv.s >= 0.3) base_hsv.s -= base_hsv.s / 3;
-        if (base_hsv.v < 0.2) {
-            base_hsv.v = 0.21;
+        if (base_hsv.v < 0.4) {
+            base_hsv.v = 0.41;
             most_used.first = hsv_to_rgb(base_hsv);
         }
-        if (base_hsv.v > 0.8) {
-            base_hsv.v = 0.79;
+        if (base_hsv.v > 0.85) {
+            base_hsv.v = 0.84;
             most_used.first = hsv_to_rgb(base_hsv);
         }
 
@@ -201,7 +202,7 @@ int main(int argc, char **argv) {
         hsv_t bg = {
             .h = base_hsv.h,
             .s = base_sat,  /* Low saturation for monochrome */
-            .v = offset + invert * bg_color_value
+            .v = offset + ((invert * original.v) / 7.0f)
         };
 
         palette[0] = hsv_to_rgb(bg);
@@ -209,14 +210,14 @@ int main(int argc, char **argv) {
         hsv_t bg_alt = {
             .h = base_hsv.h,
             .s = base_sat,
-            .v = offset + invert * (bg_color_value + bg_color_value_alt_diff)
+            .v = bg.v + (invert * bg_color_value_alt_diff * 1.5)
         };
         palette[8] = hsv_to_rgb(bg_alt);
 
         hsv_t bg_alt_2 = {
             .h = base_hsv.h,
             .s = base_sat,
-            .v = offset + invert * (bg_color_value + (bg_color_value_alt_diff * 2))
+            .v = bg_alt.v + invert * (bg_color_value_alt_diff * 1.5)
         };
         palette[16] = hsv_to_rgb(bg_alt_2);
 
@@ -298,21 +299,21 @@ int main(int argc, char **argv) {
         hsv_t bg = {
             .h = first_accent_hsv.h,
             .s = first_accent_hsv.s,
-            .v = offset + invert * bg_color_value
+            .v = offset + (invert * first_accent_hsv.v / 7.0f)
         };
         palette[0] = hsv_to_rgb(bg);
 
         hsv_t bg_alt = {
             .h = first_accent_hsv.h,
             .s = first_accent_hsv.s,
-            .v = offset + invert * (bg_color_value + bg_color_value_alt_diff)
+            .v = bg.v + (invert * bg_color_value_alt_diff)
         };
         palette[8] = hsv_to_rgb(bg_alt);
 
         hsv_t bg_alt_2 = {
             .h = first_accent_hsv.h,
             .s = first_accent_hsv.s,
-            .v = offset + invert * (bg_color_value + (bg_color_value_alt_diff * 2))
+            .v = bg_alt.v + (invert * bg_color_value_alt_diff)
         };
         palette[16] = hsv_to_rgb(bg_alt_2);
 
