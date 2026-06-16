@@ -182,6 +182,14 @@ int main(int argc, char **argv) {
         /* Get base color from the most used color */
         hsv_t base_hsv = rgb_to_hsv(most_used.first);
         if (base_hsv.s >= 0.3) base_hsv.s -= base_hsv.s / 3;
+        if (base_hsv.v < 0.2) {
+            base_hsv.v = 0.21;
+            most_used.first = hsv_to_rgb(base_hsv);
+        }
+        if (base_hsv.v > 0.8) {
+            base_hsv.v = 0.79;
+            most_used.first = hsv_to_rgb(base_hsv);
+        }
 
         bool is_black_and_white = (base_hsv.s <= 0.1) ? true : false;
         double base_sat = !is_black_and_white ? 0.15 : 0.0;
