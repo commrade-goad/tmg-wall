@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 static const float max_lightness  = 0.80;
-static const float min_lightness  = 0.45;
+static const float min_lightness  = 0.58;
 static const float min_saturation = 0.15;
 static const float max_saturation = 0.78;
 
