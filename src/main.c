@@ -15,7 +15,7 @@
 #define MIN_ARGS 3
 #define DEFAULT_SIZE 512
 
-/* * Unified Core Generation Function 
+/* * Unified Core Generation Function
  * Shared between the standalone executable and the library target.
  */
 int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, const char *path)
@@ -135,8 +135,10 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
         }
 
         bool is_black_and_white = (base_hsv.s <= 0.1) ? true : false;
-        double base_sat = !is_black_and_white ? 0.15 : 0.0;
-
+        double base_sat = 0.0;
+        if (!is_black_and_white) {
+            base_sat = 0.1 + (base_hsv.s / 6.0);
+        }
         /* Bg Color */
         double invert = dark_mode ? 1.0 : -1.0;
         double offset = dark_mode ? 0.0 : 1.0;
@@ -223,7 +225,7 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
 
         hsv_t bg = {
             .h = first_accent_hsv.h,
-            .s = first_accent_hsv.s,
+            .s = 0.1 + (first_accent_hsv.s / 6.0),
             .v = offset + (invert * first_accent_hsv.v / 7.0f)
         };
         buffer[0] = hsv_to_rgb(bg);
@@ -312,8 +314,8 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
 
             hsv_t color_hsv = {
                 .h = adjusted_hue,
-                .s = first_accent_hsv.s,
-                .v = first_accent_hsv.v
+                .s = !dark_mode ? (first_accent_hsv.s + 0.1f) : first_accent_hsv.s,
+                .v = !dark_mode ? (first_accent_hsv.v - 0.08f) : first_accent_hsv.v
             };
 
             uint8_t a_map = 0, b_map = 0;
@@ -329,7 +331,7 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
 }
 
 #ifndef AS_LIB
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
     bool monochrome = false;
     bool dark_mode = true;
