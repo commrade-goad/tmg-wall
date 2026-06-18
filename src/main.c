@@ -76,11 +76,12 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
                 most_used_of_all_dont_care_criteria.second = count;
             }
 
-            if (hsv.v < min_lightness || hsv.v > max_lightness ||
-                hsv.s < min_saturation || hsv.s > max_saturation) {
+            if (hsv.v < (!dark_mode ? clamp(min_lightness + 0.1f, 0.0, 1.0) : min_lightness) ||
+                hsv.v > (!dark_mode ? clamp(max_lightness - 0.1f, 0.0, 1.0) : max_lightness) ||
+                hsv.s < (!dark_mode ? clamp(min_saturation + 0.1f, 0.0, 1.0) : min_saturation) ||
+                hsv.s > (!dark_mode ? clamp(max_saturation - 0.1f, 0.0, 1.0) : max_saturation)) {
                 continue;
             }
-
             if (count > most_used.second) {
                 if (!found) found = true;
                 most_used.first = pixel;
@@ -135,11 +136,12 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
             most_used.first = hsv_to_rgb(base_hsv);
         }
 
-        bool is_black_and_white = (base_hsv.s <= 0.1) ? true : false;
+        bool is_black_and_white = (original.s <= 0.1) ? true : false;
         double base_sat = 0.0;
         if (!is_black_and_white) {
-            base_sat = 0.1 + (base_hsv.s / 6.0);
+            base_sat = 0.1 + (original.s / 6.0);
         }
+
         /* Bg Color */
         double invert = dark_mode ? 1.0 : -1.0;
         double offset = dark_mode ? 0.0 : 1.0;
