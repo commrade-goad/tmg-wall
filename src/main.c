@@ -20,7 +20,7 @@
  */
 int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, const char *path)
 {
-    /* NOTE: make sure buffer is rgb_t[18]! */
+    /* NOTE: make sure buffer is rgb_t[20]! */
     FILE *in_file = fopen(path, "rb");
     if (!in_file) {
         fprintf(stderr, "ERROR: Failed to open the file: %s\n", strerror(errno));
@@ -112,12 +112,13 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
         most_used = most_used_of_all_dont_care_criteria;
     }
 
-    /* List of base16:
-     * 0 : Black
-     * 1 : Dark Blue
-     * ...
-     * 17: Same as 7 but lot more dark
-     */
+/* List of base16:
+    * 0 : Black
+    * 1 : Dark Blue
+    * ...
+    * 17: Same as 7 but lot more dark
+    * 18-19: for the accent1 and accent2
+    */
     memset(buffer, 0, sizeof(rgb_t) * 18);
 
     if (monochrome) {
@@ -214,6 +215,7 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
             };
             buffer[i] = hsv_to_rgb(color_hsv);
         }
+        second_used.first = hsv_to_rgb(fg_alt);
     } else {
         hsv_t first_accent_hsv = rgb_to_hsv(most_used.first);
         if (second_used.first == 0 || second_used.second <= 0) second_used = most_used;
@@ -327,6 +329,9 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
         }
     }
 
+    buffer[18] = most_used.first;
+    buffer[19] = second_used.first;
+
     return 0;
 }
 
@@ -376,7 +381,7 @@ int main(int argc, char **argv)
     }
 
     /* Run core engine */
-    rgb_t palette[18] = {0};
+    rgb_t palette[20] = {0};
     if (libtmg_wall_generate_color(palette, monochrome, dark_mode, input) != 0) {
         return 1;
     }
@@ -393,14 +398,14 @@ int main(int argc, char **argv)
         fprintf(out_file, "\tcolor%.2d = 0x%x,\n", i, palette[i]);
     }
     /* Note: Extracted original targets for diagnostic table items below */
-    fprintf(out_file, "\taccent1 = 0x%x,\n", palette[1]); // Mirroring structural fallback logic if targets not stored
-    fprintf(out_file, "\taccent2 = 0x%x\n", palette[2]);
+    fprintf(out_file, "\taccent1 = 0x%x,\n", palette[18]); // Mirroring structural fallback logic if targets not stored
+    fprintf(out_file, "\taccent2 = 0x%x\n", palette[19]);
     fprintf(out_file, "}\n");
     fclose(out_file);
 
     /* Print color previews to stdout */
     int printed = 0;
-    for (int i = 0; i < 18; i++) {
+    for (int i = 0; i < 20; i++) {
         uint8_t r = (palette[i] >> 16) & 0xFF;
         uint8_t g = (palette[i] >> 8)  & 0xFF;
         uint8_t b =  palette[i]        & 0xFF;
