@@ -139,7 +139,7 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
         bool is_black_and_white = (original.s <= 0.1) ? true : false;
         double base_sat = 0.0;
         if (!is_black_and_white) {
-            base_sat = 0.1 + (original.s / 6.0);
+            base_sat = 0.08 + (original.s / 7.0);
         }
 
         /* Bg Color */
@@ -229,7 +229,7 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
 
         hsv_t bg = {
             .h = first_accent_hsv.h,
-            .s = 0.1 + (first_accent_hsv.s / 6.0),
+            .s = 0.08 + (first_accent_hsv.s / 7.0),
             .v = offset + (invert * first_accent_hsv.v / 7.0f)
         };
         buffer[0] = hsv_to_rgb(bg);
@@ -249,7 +249,7 @@ int libtmg_wall_generate_color(rgb_t *buffer, bool monochrome, bool dark_mode, c
         buffer[16] = hsv_to_rgb(bg_alt_2);
 
         /* Fg Color */
-        hsv_t fg = { bg.h,     0.15, 1.0f - bg.v};
+        hsv_t fg = { bg.h, bg.s, 1.0f - bg.v};
         buffer[15] = hsv_to_rgb(fg);
 
         float shift_by = bg_alt.v / 16.0f;
